@@ -1,0 +1,758 @@
+[
+  {
+    "stop_id": "AZAMI_S0001",
+    "uid": "AZAMI_S0001",
+    "stop_name": "下諏訪駅",
+    "latitude": 36.07219831961,
+    "longitude": 138.08521292558,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0002",
+    "uid": "AZAMI_S0002",
+    "stop_name": "大社通り",
+    "latitude": 36.074650130498,
+    "longitude": 138.087100765708,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0003",
+    "uid": "AZAMI_S0003",
+    "stop_name": "諏訪大社秋宮前",
+    "latitude": 36.075167660443,
+    "longitude": 138.089933217426,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0004",
+    "uid": "AZAMI_S0004",
+    "stop_name": "湯田坂上",
+    "latitude": 36.077096053663,
+    "longitude": 138.089331324436,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0005",
+    "uid": "AZAMI_S0005",
+    "stop_name": "新町上",
+    "latitude": 36.079688137799,
+    "longitude": 138.087395366825,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0006",
+    "uid": "AZAMI_S0006",
+    "stop_name": "宮の上",
+    "latitude": 36.081261204073,
+    "longitude": 138.084245359164,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0007",
+    "uid": "AZAMI_S0007",
+    "stop_name": "山の神下",
+    "latitude": 36.084536313016,
+    "longitude": 138.083556565966,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0008",
+    "uid": "AZAMI_S0008",
+    "stop_name": "山の神上",
+    "latitude": 36.087670887757,
+    "longitude": 138.084213474162,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0009",
+    "uid": "AZAMI_S0009",
+    "stop_name": "注連掛南",
+    "latitude": 36.092380071108,
+    "longitude": 138.085138977709,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0010",
+    "uid": "AZAMI_S0010",
+    "stop_name": "長坂団地前",
+    "latitude": 36.09678223138,
+    "longitude": 138.086241909537,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0011",
+    "uid": "AZAMI_S0011",
+    "stop_name": "落合橋",
+    "latitude": 36.098551173073,
+    "longitude": 138.088512081636,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0012",
+    "uid": "AZAMI_S0012",
+    "stop_name": "萩倉口下",
+    "latitude": 36.102472028978,
+    "longitude": 138.093598847533,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0013",
+    "uid": "AZAMI_S0013",
+    "stop_name": "下屋敷",
+    "latitude": 36.106141676205,
+    "longitude": 138.095732577136,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0014",
+    "uid": "AZAMI_S0014",
+    "stop_name": "町屋敷",
+    "latitude": 36.104811366905,
+    "longitude": 138.095337190562,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0015",
+    "uid": "AZAMI_S0015",
+    "stop_name": "鈴ヶ口",
+    "latitude": 36.108568781744,
+    "longitude": 138.098625828794,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0016",
+    "uid": "AZAMI_S0016",
+    "stop_name": "樋橋",
+    "latitude": 36.121425253717,
+    "longitude": 138.102692638083,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0017",
+    "uid": "AZAMI_S0017",
+    "stop_name": "町屋敷公園前",
+    "latitude": 36.10256589772,
+    "longitude": 138.094396666059,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0018",
+    "uid": "AZAMI_S0018",
+    "stop_name": "木落し坂",
+    "latitude": 36.100139340722,
+    "longitude": 138.094603892538,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0019",
+    "uid": "AZAMI_S0019",
+    "stop_name": "萩倉仲町",
+    "latitude": 36.100233567787,
+    "longitude": 138.097139017916,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0020",
+    "uid": "AZAMI_S0020",
+    "stop_name": "萩倉",
+    "latitude": 36.100240962144,
+    "longitude": 138.099063106814,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0021",
+    "uid": "AZAMI_S0021",
+    "stop_name": "萩倉上",
+    "latitude": 36.100067660156,
+    "longitude": 138.104327455519,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0022",
+    "uid": "AZAMI_S0022",
+    "stop_name": "所沢",
+    "latitude": 36.100647365778,
+    "longitude": 138.107469908746,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0023",
+    "uid": "AZAMI_S0023",
+    "stop_name": "萩倉口上",
+    "latitude": 36.102023773421,
+    "longitude": 138.093629758493,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0024",
+    "uid": "AZAMI_S0024",
+    "stop_name": "注連掛北",
+    "latitude": 36.092980135099,
+    "longitude": 138.085602228968,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0025",
+    "uid": "AZAMI_S0025",
+    "stop_name": "星が丘上",
+    "latitude": 36.091147558039,
+    "longitude": 138.0823023728,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0026",
+    "uid": "AZAMI_S0026",
+    "stop_name": "星が丘公会所前",
+    "latitude": 36.089222246639,
+    "longitude": 138.081632659915,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0027",
+    "uid": "AZAMI_S0027",
+    "stop_name": "社中学校入口",
+    "latitude": 36.087653618712,
+    "longitude": 138.080379135728,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0028",
+    "uid": "AZAMI_S0028",
+    "stop_name": "北小校庭入口",
+    "latitude": 36.084644864939,
+    "longitude": 138.076869355176,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0029",
+    "uid": "AZAMI_S0029",
+    "stop_name": "万治の石仏",
+    "latitude": 36.082115994327,
+    "longitude": 138.080581575596,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0030",
+    "uid": "AZAMI_S0030",
+    "stop_name": "老人福祉センター",
+    "latitude": 36.080281003883,
+    "longitude": 138.079579670483,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0031",
+    "uid": "AZAMI_S0031",
+    "stop_name": "諏訪マタニティー前",
+    "latitude": 36.077601035104,
+    "longitude": 138.079063171313,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0032",
+    "uid": "AZAMI_S0032",
+    "stop_name": "西友西",
+    "latitude": 36.07575122287,
+    "longitude": 138.079073296079,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0033",
+    "uid": "AZAMI_S0033",
+    "stop_name": "春宮大門",
+    "latitude": 36.074847924963,
+    "longitude": 138.081356008358,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0034",
+    "uid": "AZAMI_S0034",
+    "stop_name": "大社通り四ツ角①",
+    "latitude": 36.074543049266,
+    "longitude": 138.084721161582,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0035",
+    "uid": "AZAMI_S0035",
+    "stop_name": "大社通り四ツ角②",
+    "latitude": 36.074393841032,
+    "longitude": 138.084250131704,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0036",
+    "uid": "AZAMI_S0036",
+    "stop_name": "西友前",
+    "latitude": 36.075861809924,
+    "longitude": 138.080604308807,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0037",
+    "uid": "AZAMI_S0037",
+    "stop_name": "注連掛西",
+    "latitude": 36.092804590846,
+    "longitude": 138.085107213991,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0038",
+    "uid": "AZAMI_S0038",
+    "stop_name": "大社通り四ツ角③",
+    "latitude": 36.074463025921,
+    "longitude": 138.085133294389,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0039",
+    "uid": "AZAMI_S0039",
+    "stop_name": "食祭館南",
+    "latitude": 36.073974106884,
+    "longitude": 138.087022043098,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0040",
+    "uid": "AZAMI_S0040",
+    "stop_name": "秋宮南",
+    "latitude": 36.074398849231,
+    "longitude": 138.091250026555,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0041",
+    "uid": "AZAMI_S0041",
+    "stop_name": "武居",
+    "latitude": 36.075335458674,
+    "longitude": 138.092955584002,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0042",
+    "uid": "AZAMI_S0042",
+    "stop_name": "向陽台入口",
+    "latitude": 36.076097782014,
+    "longitude": 138.095379059448,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0043",
+    "uid": "AZAMI_S0043",
+    "stop_name": "武居北",
+    "latitude": 36.078094570234,
+    "longitude": 138.099603559556,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0044",
+    "uid": "AZAMI_S0044",
+    "stop_name": "下諏訪向陽高校",
+    "latitude": 36.07779360006,
+    "longitude": 138.102811485955,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0045",
+    "uid": "AZAMI_S0045",
+    "stop_name": "下諏訪郵便局東",
+    "latitude": 36.072163477949,
+    "longitude": 138.082641222222,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0046",
+    "uid": "AZAMI_S0046",
+    "stop_name": "文化センター前",
+    "latitude": 36.069919804714,
+    "longitude": 138.080287716792,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0047",
+    "uid": "AZAMI_S0047",
+    "stop_name": "役場東",
+    "latitude": 36.069378253006,
+    "longitude": 138.082055601077,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0048",
+    "uid": "AZAMI_S0048",
+    "stop_name": "四王",
+    "latitude": 36.069496263023,
+    "longitude": 138.085692997008,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0049",
+    "uid": "AZAMI_S0049",
+    "stop_name": "イオン諏訪店横",
+    "latitude": 36.066851527209,
+    "longitude": 138.087078789532,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0050",
+    "uid": "AZAMI_S0050",
+    "stop_name": "ハーモ美術館前",
+    "latitude": 36.06497852622,
+    "longitude": 138.087900556153,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0051",
+    "uid": "AZAMI_S0051",
+    "stop_name": "AQUA未来",
+    "latitude": 36.063263923465,
+    "longitude": 138.080448451141,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0052",
+    "uid": "AZAMI_S0052",
+    "stop_name": "東赤砂",
+    "latitude": 36.065508307612,
+    "longitude": 138.080201532513,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0053",
+    "uid": "AZAMI_S0053",
+    "stop_name": "西大路南",
+    "latitude": 36.068034601634,
+    "longitude": 138.075559108454,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0054",
+    "uid": "AZAMI_S0054",
+    "stop_name": "砥川西",
+    "latitude": 36.069809056395,
+    "longitude": 138.07562843353,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0055",
+    "uid": "AZAMI_S0055",
+    "stop_name": "あざみクリニック前",
+    "latitude": 36.071325548183,
+    "longitude": 138.075703163607,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0056",
+    "uid": "AZAMI_S0056",
+    "stop_name": "西大路北",
+    "latitude": 36.073506645908,
+    "longitude": 138.075832901493,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0057",
+    "uid": "AZAMI_S0057",
+    "stop_name": "社東町公民館",
+    "latitude": 36.077051276107,
+    "longitude": 138.075545334165,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0058",
+    "uid": "AZAMI_S0058",
+    "stop_name": "信濃医療福祉センター",
+    "latitude": 36.080253899442,
+    "longitude": 138.073292385215,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0059",
+    "uid": "AZAMI_S0059",
+    "stop_name": "社郵便局前",
+    "latitude": 36.082019755325,
+    "longitude": 138.074132306108,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0060",
+    "uid": "AZAMI_S0060",
+    "stop_name": "山花前",
+    "latitude": 36.082690506227,
+    "longitude": 138.074751606709,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0061",
+    "uid": "AZAMI_S0061",
+    "stop_name": "諏訪共立病院前",
+    "latitude": 36.07720211271,
+    "longitude": 138.081456523956,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0062",
+    "uid": "AZAMI_S0062",
+    "stop_name": "今昔館前",
+    "latitude": 36.075501607,
+    "longitude": 138.08925208876,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0063",
+    "uid": "AZAMI_S0063",
+    "stop_name": "藤ノ木",
+    "latitude": 36.066352734093,
+    "longitude": 138.10409733764,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0064",
+    "uid": "AZAMI_S0064",
+    "stop_name": "高木公民館前",
+    "latitude": 36.065530854095,
+    "longitude": 138.106556073927,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0065",
+    "uid": "AZAMI_S0065",
+    "stop_name": "ユーペンハウス前",
+    "latitude": 36.063549086928,
+    "longitude": 138.107761894685,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0066",
+    "uid": "AZAMI_S0066",
+    "stop_name": "東高木",
+    "latitude": 36.062825459828,
+    "longitude": 138.106605577886,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0067",
+    "uid": "AZAMI_S0067",
+    "stop_name": "高木下",
+    "latitude": 36.064656478968,
+    "longitude": 138.10448407945,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0068",
+    "uid": "AZAMI_S0068",
+    "stop_name": "諏訪湖博物館・赤彦記念館",
+    "latitude": 36.06693010127,
+    "longitude": 138.101848959568,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0070",
+    "uid": "AZAMI_S0070",
+    "stop_name": "高浜運動公園前",
+    "latitude": 36.067686759279,
+    "longitude": 138.096072515666,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0071",
+    "uid": "AZAMI_S0071",
+    "stop_name": "信金湖浜東",
+    "latitude": 36.067760851368,
+    "longitude": 138.093554552131,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0072",
+    "uid": "AZAMI_S0072",
+    "stop_name": "四王歩道橋",
+    "latitude": 36.0677013645,
+    "longitude": 138.088742415294,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0073",
+    "uid": "AZAMI_S0073",
+    "stop_name": "長野銀行前",
+    "latitude": 36.0664151857,
+    "longitude": 138.08160000866,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0074",
+    "uid": "AZAMI_S0074",
+    "stop_name": "下諏訪町役場",
+    "latitude": 36.069309878341,
+    "longitude": 138.079449149246,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "AZAMI_S0075",
+    "uid": "AZAMI_S0075",
+    "stop_name": "信金湖浜前",
+    "latitude": 36.067884454078,
+    "longitude": 138.093124890048,
+    "bus_system": "あざみ号",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "SWAN_S0001",
+    "uid": "SWAN_S0001",
+    "stop_name": "下諏訪駅",
+    "latitude": 36.07219118325,
+    "longitude": 138.085224703733,
+    "bus_system": "スワンバス",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "SWAN_S0053",
+    "uid": "SWAN_S0053",
+    "stop_name": "西大路南",
+    "latitude": 36.068022198156,
+    "longitude": 138.075559851587,
+    "bus_system": "スワンバス",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "SWAN_S0066",
+    "uid": "SWAN_S0066",
+    "stop_name": "東高木",
+    "latitude": 36.062632069946,
+    "longitude": 138.107057173068,
+    "bus_system": "スワンバス",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "SWAN_S0067",
+    "uid": "SWAN_S0067",
+    "stop_name": "高木下",
+    "latitude": 36.064667131874,
+    "longitude": 138.10448221966,
+    "bus_system": "スワンバス",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "SWAN_S0074",
+    "uid": "SWAN_S0074",
+    "stop_name": "下諏訪町役場",
+    "latitude": 36.069329064729,
+    "longitude": 138.079457010885,
+    "bus_system": "スワンバス",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "SWAN_S0109",
+    "uid": "SWAN_S0109",
+    "stop_name": "富ヶ丘",
+    "latitude": 36.068649999302,
+    "longitude": 138.097520087202,
+    "bus_system": "スワンバス",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "SWAN_S0110",
+    "uid": "SWAN_S0110",
+    "stop_name": "承知川",
+    "latitude": 36.071239142974,
+    "longitude": 138.091320041021,
+    "bus_system": "スワンバス",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "SWAN_S0111",
+    "uid": "SWAN_S0111",
+    "stop_name": "大社通り四ツ角",
+    "latitude": 36.074470808393,
+    "longitude": 138.084479098754,
+    "bus_system": "スワンバス",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "SWAN_S0112",
+    "uid": "SWAN_S0112",
+    "stop_name": "春宮大門南",
+    "latitude": 36.07392057193,
+    "longitude": 138.081064463277,
+    "bus_system": "スワンバス",
+    "location_source": "real_json_tokyo_to_wgs84"
+  },
+  {
+    "stop_id": "SWAN_S0113",
+    "uid": "SWAN_S0113",
+    "stop_name": "赤砂",
+    "latitude": 36.065471838948,
+    "longitude": 138.075429664515,
+    "bus_system": "スワンバス",
+    "location_source": "real_json_tokyo_to_wgs84"
+  }
+]

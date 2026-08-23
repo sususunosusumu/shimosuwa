@@ -1,26 +1,60 @@
 from pathlib import Path
+import re
 
-p=Path(__file__).resolve().parents[1]/'index.html'
-s=p.read_text(encoding='utf-8')
-if 'Google Places APIでピン補正' in s:
-    print('already patched')
+p = Path(__file__).resolve().parents[1] / 'index.html'
+s = p.read_text(encoding='utf-8')
+
+if 'v4.3' in s:
+    print('already patched to v4.3')
     raise SystemExit(0)
+if 'v4.2' not in s:
+    raise SystemExit('expected v4.2 index.html')
 
-s=s.replace('v4.1','v4.2')
-needle='.badge{display:inline-block;border-radius:999px;padding:2px 6px;background:#edf1f3;color:#52606b;font-size:10px}'
-css='''.api-box{margin-top:12px;padding:12px;border:1px solid #dfe5e8;border-radius:12px;background:#fbfcfc}.api-grid{display:grid;grid-template-columns:1.2fr 1.8fr auto;gap:8px;align-items:end}.api-results{display:grid;gap:8px;margin-top:10px}.api-result{border:1px solid #dfe4e8;border-radius:11px;padding:10px;background:#fff;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}.api-result-name{font-weight:800}.api-result-address{font-size:12px;color:#667085;margin-top:2px}.api-result-id{font-size:10px;color:#98a2ad;margin-top:4px;word-break:break-all}.api-result button{margin:0;white-space:nowrap}.key-note{font-size:11px;color:#667085;margin-top:5px}.okmsg{color:#226447;font-weight:700}.errmsg{color:#a23535;font-weight:700}'''
-s=s.replace(needle,needle+css)
-s=s.replace('@media(max-width:740px){.w{padding:12px}', '@media(max-width:740px){.api-grid{grid-template-columns:1fr}.api-result{grid-template-columns:1fr}.w{padding:12px}')
+s = s.replace('v4.2', 'v4.3')
+s = s.replace('未取得座標を仮取得</button>', '未取得座標を住所から仮取得</button>')
 
-old='''<div class="p"><details><summary>データ整備ツール</summary><div class="small" style="margin-top:10px">未取得座標の仮取得、Google Maps URLからの実ピン補正、CSV書き出しができます。</div><button class="warn" onclick="geocodeMissing()">未取得座標を自動取得</button><div id="geoStatus" class="small"></div><div class="g" style="margin-top:10px"><div><label>Google実ピンを補正するPlace</label><select id="gmPlace"></select></div><div><label>Google Maps URL</label><input id="gmUrl" placeholder="Google Mapsで対象Placeを開いたURL"></div></div><button onclick="applyGooglePin()">Google実ピンを反映</button><button class="alt" onclick="openSelectedGoogle()">Google Mapsで開く</button><button class="alt" onclick="exportPlacesCsv()">補正済みCSVを書き出す</button><div id="gmStatus" class="small"></div></details></div>'''
-new='''<div class="p"><details open><summary>データ整備ツール</summary><div class="small" style="margin-top:10px">未取得座標の仮取得に加えて、Google Places APIで実際の施設・店舗候補を検索し、確認してから正確なピンへ補正できます。</div><button class="warn" onclick="geocodeMissing()">未取得座標を仮取得</button><div id="geoStatus" class="small"></div><div class="api-box"><b>Google Places APIでピン補正</b><div class="api-grid" style="margin-top:9px"><div><label>APIキー</label><input id="googleApiKey" type="password" placeholder="Google Maps Platform API key"><div class="key-note">キーはGitHubには保存せず、このブラウザ内だけに保存します。</div></div><div><label>検索するPlace</label><select id="gmPlace"></select></div><div><button onclick="searchGooglePlaces()">Googleで候補検索</button></div></div><div id="placesApiStatus" class="small" style="margin-top:8px"></div><div id="placesApiResults" class="api-results"></div></div><details style="margin-top:12px"><summary>Google Maps URLから手動補正（予備）</summary><div class="g" style="margin-top:10px"><div><label>Google Maps URL</label><input id="gmUrl" placeholder="Google Mapsで対象Placeを開いたURL"></div><div style="align-self:end"><button onclick="applyGooglePin()">URLの実ピンを反映</button><button class="alt" onclick="openSelectedGoogle()">Google Mapsで開く</button></div></div><div id="gmStatus" class="small"></div></details><button class="alt" onclick="exportPlacesCsv()">補正済みCSVを書き出す</button></details></div>'''
-if old not in s: raise SystemExit('data tools block not found')
-s=s.replace(old,new)
-s=s.replace("function cacheKey(p){return'geo:'+p['住所']}function pinKey(p){return'gmap-pin:'+p.place_id}","function cacheKey(p){return'geo:'+p['住所']}function pinKey(p){return'gmap-pin:'+p.place_id}function apiKeyStore(){return'shimosuwa-google-maps-api-key'}")
-s=s.replace("if(x){p.latitude=x.lat;p.longitude=x.lng;p['座標ステータス']='Google実ピン';p['GoogleマップURL_確定']=x.url;return}","if(x){p.latitude=x.lat;p.longitude=x.lng;p['座標ステータス']=x.status||'Google実ピン';p['GoogleマップURL_確定']=x.url||p['GoogleマップURL_確定'];p['google_place_id']=x.googlePlaceId||p['google_place_id'];p['Google確認住所']=x.formattedAddress||p['Google確認住所'];return}")
+new_func = r'''async function geocodeMissing(){
+  const missing=P.filter(p=>!p.latitude||!p.longitude);
+  const eligible=missing.filter(p=>(p['住所']||'').trim());
+  const noAddress=missing.length-eligible.length;
+  const status=$('geoStatus');
+  if(!missing.length){
+    status.innerHTML='<span class="okmsg">未取得座標はありません。すでに全Placeに座標があります。</span>';
+    return;
+  }
+  if(!eligible.length){
+    status.innerHTML='<span class="errmsg">未取得座標は '+missing.length+'件ありますが、住所が未登録のため住所検索では取得できません。Google Places APIで個別に候補検索してください。</span>';
+    return;
+  }
+  let ok=0,ng=0;
+  status.textContent=`住所から仮取得中… 対象 ${eligible.length}件 / 住所なし ${noAddress}件`;
+  for(const p of eligible){
+    try{
+      let q=(p['住所']||'').replace(/^〒\d{3}-\d{4}\s*/,'');
+      let r=await fetch('https://msearch.gsi.go.jp/address-search/AddressSearch?q='+encodeURIComponent(q));
+      if(!r.ok)throw Error('HTTP '+r.status);
+      let j=await r.json();
+      if(j?.[0]?.geometry){
+        let [lng,lat]=j[0].geometry.coordinates;
+        p.latitude=lat;p.longitude=lng;p['座標ステータス']='住所検索（仮）';
+        localStorage.setItem(cacheKey(p),JSON.stringify({lat,lng}));
+        ok++;
+      }else ng++;
+    }catch(e){
+      console.warn('geocode failed',p['名称'],e);
+      ng++;
+    }
+    status.textContent=`住所から仮取得中… 成功 ${ok} / 失敗 ${ng} / 対象 ${eligible.length} / 住所なし ${noAddress}`;
+    await new Promise(r=>setTimeout(r,110));
+  }
+  rebuild();
+  status.innerHTML=`<span class="${ng?'errmsg':'okmsg'}">完了：成功 ${ok}件 / 失敗 ${ng}件 / 住所なし ${noAddress}件。住所検索は仮位置なので、重要なPlaceはGoogle Places APIで確認してください。</span>`;
+}'''
 
-api_js=r'''let googlePlacesLoading=null,googleCandidateMarker=null;function initGoogleApiKey(){let el=$('googleApiKey');if(!el)return;try{el.value=localStorage.getItem(apiKeyStore())||''}catch(e){}el.addEventListener('change',()=>{try{localStorage.setItem(apiKeyStore(),el.value.trim())}catch(e){}})}async function ensureGooglePlaces(){if(window.google?.maps?.importLibrary)return;if(googlePlacesLoading)return googlePlacesLoading;let key=$('googleApiKey')?.value.trim();if(!key)throw Error('APIキーを入力してください');try{localStorage.setItem(apiKeyStore(),key)}catch(e){}googlePlacesLoading=new Promise((resolve,reject)=>{let old=document.getElementById('google-maps-js');if(old)old.remove();let sc=document.createElement('script');sc.id='google-maps-js';sc.async=true;sc.defer=true;sc.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(key)+'&v=weekly&loading=async&libraries=places';sc.onload=resolve;sc.onerror=()=>{googlePlacesLoading=null;reject(Error('Google APIを読み込めませんでした。APIキーのHTTPリファラ制限と Maps JavaScript API / Places API (New) の有効化を確認してください。'))};document.head.appendChild(sc)});return googlePlacesLoading}async function searchGooglePlaces(){let p=P[+$('gmPlace').value],box=$('placesApiResults'),status=$('placesApiStatus');box.innerHTML='';if(!p){status.innerHTML='<span class="errmsg">Placeを選択してください。</span>';return}status.textContent='Google Placesを検索中...';try{await ensureGooglePlaces();const {Place}=await google.maps.importLibrary('places');const {places}=await Place.searchByText({textQuery:(p['名称']||'')+' 下諏訪町 長野県',fields:['id','displayName','formattedAddress','location','googleMapsURI'],language:'ja',region:'jp',maxResultCount:5});if(!places?.length){status.innerHTML='<span class="errmsg">候補が見つかりませんでした。</span>';return}status.textContent=places.length+'件の候補。名称・住所を確認してください。';window.__googlePlaceCandidates=places;box.innerHTML=places.map((x,i)=>{let lat=x.location?.lat?.(),lng=x.location?.lng?.();return `<div class="api-result"><div><div class="api-result-name">${esc(x.displayName||'名称なし')}</div><div class="api-result-address">${esc(x.formattedAddress||'住所なし')}</div><div class="api-result-id">Place ID: ${esc(x.id||'')} / ${Number(lat).toFixed(6)}, ${Number(lng).toFixed(6)}</div></div><button onclick="applyGoogleCandidate(${i})">この候補で補正</button></div>`}).join('');let x=places[0],lat=x.location?.lat?.(),lng=x.location?.lng?.();if(Number.isFinite(lat)&&Number.isFinite(lng)){if(googleCandidateMarker)map.removeLayer(googleCandidateMarker);googleCandidateMarker=L.circleMarker([lat,lng],{radius:10,weight:3,fillOpacity:.15}).addTo(map).bindPopup('Google候補: '+esc(x.displayName||''));map.setView([lat,lng],17)}}catch(e){console.error(e);status.innerHTML='<span class="errmsg">'+esc(e.message||String(e))+'</span>'}}function applyGoogleCandidate(i){let p=P[+$('gmPlace').value],x=window.__googlePlaceCandidates?.[i];if(!p||!x)return;let lat=x.location?.lat?.(),lng=x.location?.lng?.();if(!Number.isFinite(lat)||!Number.isFinite(lng)){$('placesApiStatus').innerHTML='<span class="errmsg">候補の座標を取得できませんでした。</span>';return}p.latitude=lat;p.longitude=lng;p['座標ステータス']='Google Places確認済';p['google_place_id']=x.id||'';p['Google確認住所']=x.formattedAddress||'';p['GoogleマップURL_確定']=x.googleMapsURI||p['Googleマップ検索URL']||'';localStorage.setItem(pinKey(p),JSON.stringify({lat,lng,url:p['GoogleマップURL_確定'],googlePlaceId:p['google_place_id'],formattedAddress:p['Google確認住所'],status:'Google Places確認済'}));$('placesApiStatus').innerHTML='<span class="okmsg">'+esc(p['名称'])+' を '+lat.toFixed(6)+', '+lng.toFixed(6)+' に補正しました。</span>';rebuild();map.setView([lat,lng],18)}'''
-s=s.replace('async function geocodeMissing()',api_js+'async function geocodeMissing()')
-s=s.replace("Promise.all([fetch('data/places.csv')","initGoogleApiKey();Promise.all([fetch('data/places.csv')")
-p.write_text(s,encoding='utf-8')
-print('patched index.html to v4.2')
+pattern = r'async function geocodeMissing\(\)\{.*?\}function parseGoogleCoords'
+if not re.search(pattern, s, flags=re.S):
+    raise SystemExit('geocodeMissing function not found')
+s = re.sub(pattern, new_func + 'function parseGoogleCoords', s, count=1, flags=re.S)
+
+p.write_text(s, encoding='utf-8')
+print('patched index.html to v4.3')

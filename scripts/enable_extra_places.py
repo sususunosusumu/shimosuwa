@@ -1,60 +1,42 @@
 from pathlib import Path
-import re
 
 p = Path(__file__).resolve().parents[1] / 'index.html'
 s = p.read_text(encoding='utf-8')
 
-if 'v4.3' in s:
-    print('already patched to v4.3')
+# v4.3: sequential Google Places verification workflow.
+if '次の未確認Place' in s and 'v4.3' in s:
+    print('v4.3 already patched')
     raise SystemExit(0)
-if 'v4.2' not in s:
-    raise SystemExit('expected v4.2 index.html')
 
 s = s.replace('v4.2', 'v4.3')
-s = s.replace('未取得座標を仮取得</button>', '未取得座標を住所から仮取得</button>')
 
-new_func = r'''async function geocodeMissing(){
-  const missing=P.filter(p=>!p.latitude||!p.longitude);
-  const eligible=missing.filter(p=>(p['住所']||'').trim());
-  const noAddress=missing.length-eligible.length;
-  const status=$('geoStatus');
-  if(!missing.length){
-    status.innerHTML='<span class="okmsg">未取得座標はありません。すでに全Placeに座標があります。</span>';
-    return;
-  }
-  if(!eligible.length){
-    status.innerHTML='<span class="errmsg">未取得座標は '+missing.length+'件ありますが、住所が未登録のため住所検索では取得できません。Google Places APIで個別に候補検索してください。</span>';
-    return;
-  }
-  let ok=0,ng=0;
-  status.textContent=`住所から仮取得中… 対象 ${eligible.length}件 / 住所なし ${noAddress}件`;
-  for(const p of eligible){
-    try{
-      let q=(p['住所']||'').replace(/^〒\d{3}-\d{4}\s*/,'');
-      let r=await fetch('https://msearch.gsi.go.jp/address-search/AddressSearch?q='+encodeURIComponent(q));
-      if(!r.ok)throw Error('HTTP '+r.status);
-      let j=await r.json();
-      if(j?.[0]?.geometry){
-        let [lng,lat]=j[0].geometry.coordinates;
-        p.latitude=lat;p.longitude=lng;p['座標ステータス']='住所検索（仮）';
-        localStorage.setItem(cacheKey(p),JSON.stringify({lat,lng}));
-        ok++;
-      }else ng++;
-    }catch(e){
-      console.warn('geocode failed',p['名称'],e);
-      ng++;
-    }
-    status.textContent=`住所から仮取得中… 成功 ${ok} / 失敗 ${ng} / 対象 ${eligible.length} / 住所なし ${noAddress}`;
-    await new Promise(r=>setTimeout(r,110));
-  }
-  rebuild();
-  status.innerHTML=`<span class="${ng?'errmsg':'okmsg'}">完了：成功 ${ok}件 / 失敗 ${ng}件 / 住所なし ${noAddress}件。住所検索は仮位置なので、重要なPlaceはGoogle Places APIで確認してください。</span>`;
-}'''
+# Add the sequential button and progress display beside Google candidate search.
+old = '''<div><button onclick="searchGooglePlaces()">Googleで候補検索</button></div></div><div id="placesApiStatus" class="small" style="margin-top:8px"></div>'''
+new = '''<div><button onclick="searchGooglePlaces()">Googleで候補検索</button><button class="alt" onclick="nextUnverifiedPlace()">次の未確認Place</button></div></div><div id="googleVerifyProgress" class="small" style="margin-top:8px"></div><div id="placesApiStatus" class="small" style="margin-top:5px"></div>'''
+if old not in s:
+    raise SystemExit('Google Places control block not found')
+s = s.replace(old, new)
 
-pattern = r'async function geocodeMissing\(\)\{.*?\}function parseGoogleCoords'
-if not re.search(pattern, s, flags=re.S):
-    raise SystemExit('geocodeMissing function not found')
-s = re.sub(pattern, new_func + 'function parseGoogleCoords', s, count=1, flags=re.S)
+# Add helper functions immediately before the existing Google API loader declarations.
+needle = '''let googlePlacesLoading=null,googleCandidateMarker=null;'''
+helpers = r'''function isGoogleVerified(p){return !!(p&&(p['座標ステータス']==='Google Places確認済'||p['google_place_id']))}function updateGoogleProgress(){let el=$('googleVerifyProgress');if(!el)return;let done=P.filter(isGoogleVerified).length,total=P.length,left=total-done;el.textContent=`Google確認済 ${done} / ${total}件　・　未確認 ${left}件`}async function nextUnverifiedPlace(startAfter=null){if(!P.length)return;let current=Number.isFinite(startAfter)?startAfter:+($('gmPlace').value||-1),next=-1;for(let step=1;step<=P.length;step++){let i=(current+step+P.length)%P.length;if(!isGoogleVerified(P[i])){next=i;break}}if(next<0){$('placesApiStatus').innerHTML='<span class="okmsg">すべてのPlaceがGoogle確認済みです。</span>';updateGoogleProgress();return}$('gmPlace').value=String(next);let p=P[next];$('placesApiStatus').textContent=`次の未確認Place：${p['名称']}。Google候補を自動検索します。`;await searchGooglePlaces()}'''
+if needle not in s:
+    raise SystemExit('Google API declaration not found')
+s = s.replace(needle, helpers + needle)
+
+# Preserve the current Place selection across rebuilds and refresh verification progress.
+old_rebuild = '''$('gmPlace').innerHTML=P.map((p,i)=>`<option value="${i}">${esc(p['名称'])} — ${esc(p['座標ステータス']||'')}</option>`).join('');$('status').textContent=`Places ${P.length}件（座標あり ${P.filter(p=>p.latitude&&p.longitude).length}件） / GTFSバス停 ${B.length}地点`;renderPointManager()}'''
+new_rebuild = '''let gmCurrent=$('gmPlace').value;$('gmPlace').innerHTML=P.map((p,i)=>`<option value="${i}">${isGoogleVerified(p)?'✓ ':''}${esc(p['名称'])} — ${esc(p['座標ステータス']||'')}</option>`).join('');if(gmCurrent!==''&&P[+gmCurrent])$('gmPlace').value=gmCurrent;$('status').textContent=`Places ${P.length}件（座標あり ${P.filter(p=>p.latitude&&p.longitude).length}件） / GTFSバス停 ${B.length}地点`;updateGoogleProgress();renderPointManager()}'''
+if old_rebuild not in s:
+    raise SystemExit('rebuild Google select block not found')
+s = s.replace(old_rebuild, new_rebuild)
+
+# After confirming one candidate, automatically move to and search the next unverified Place.
+old_apply = '''function applyGoogleCandidate(i){let p=P[+$('gmPlace').value],x=window.__googlePlaceCandidates?.[i];if(!p||!x)return;let lat=x.location?.lat?.(),lng=x.location?.lng?.();if(!Number.isFinite(lat)||!Number.isFinite(lng)){$('placesApiStatus').innerHTML='<span class="errmsg">候補の座標を取得できませんでした。</span>';return}p.latitude=lat;p.longitude=lng;p['座標ステータス']='Google Places確認済';p['google_place_id']=x.id||'';p['Google確認住所']=x.formattedAddress||'';p['GoogleマップURL_確定']=x.googleMapsURI||p['Googleマップ検索URL']||'';localStorage.setItem(pinKey(p),JSON.stringify({lat,lng,url:p['GoogleマップURL_確定'],googlePlaceId:p['google_place_id'],formattedAddress:p['Google確認住所'],status:'Google Places確認済'}));$('placesApiStatus').innerHTML='<span class="okmsg">'+esc(p['名称'])+' を '+lat.toFixed(6)+', '+lng.toFixed(6)+' に補正しました。</span>';rebuild();map.setView([lat,lng],18)}'''
+new_apply = '''function applyGoogleCandidate(i){let currentIndex=+$('gmPlace').value,p=P[currentIndex],x=window.__googlePlaceCandidates?.[i];if(!p||!x)return;let lat=x.location?.lat?.(),lng=x.location?.lng?.();if(!Number.isFinite(lat)||!Number.isFinite(lng)){$('placesApiStatus').innerHTML='<span class="errmsg">候補の座標を取得できませんでした。</span>';return}p.latitude=lat;p.longitude=lng;p['座標ステータス']='Google Places確認済';p['google_place_id']=x.id||'';p['Google確認住所']=x.formattedAddress||'';p['GoogleマップURL_確定']=x.googleMapsURI||p['Googleマップ検索URL']||'';localStorage.setItem(pinKey(p),JSON.stringify({lat,lng,url:p['GoogleマップURL_確定'],googlePlaceId:p['google_place_id'],formattedAddress:p['Google確認住所'],status:'Google Places確認済'}));$('placesApiStatus').innerHTML='<span class="okmsg">'+esc(p['名称'])+' を確認しました。次の未確認Placeへ進みます。</span>';rebuild();map.setView([lat,lng],18);setTimeout(()=>nextUnverifiedPlace(currentIndex),450)}'''
+if old_apply not in s:
+    raise SystemExit('applyGoogleCandidate function not found')
+s = s.replace(old_apply, new_apply)
 
 p.write_text(s, encoding='utf-8')
-print('patched index.html to v4.3')
+print('patched index.html to v4.3 sequential Google Places verification')

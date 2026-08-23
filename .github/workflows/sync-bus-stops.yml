@@ -18,16 +18,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - name: Generate corrected bus stop JSON
+      - name: Generate corrected bus stop JSON and patch planner
         run: python scripts/sync_bus_stops.py
-      - name: Commit generated JSON
+      - name: Commit generated files
         run: |
-          if git diff --quiet -- data/bus_stops_corrected.json; then
+          if git diff --quiet -- data/bus_stops_corrected.json index.html; then
             echo "No changes"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/bus_stops_corrected.json
-          git commit -m "Sync corrected bus stop coordinates"
+          git add data/bus_stops_corrected.json index.html
+          git commit -m "Sync corrected bus stops into planner"
           git push

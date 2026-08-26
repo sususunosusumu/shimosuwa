@@ -1,0 +1,47 @@
+name: Apply map enhancements
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'map-enhancements.js'
+      - '.github/workflows/apply-map-enhancements.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-index:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Add map enhancement module to index
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          text = p.read_text(encoding='utf-8')
+          tag = '<script src="map-enhancements.js?v=5.0"></script>'
+          if tag not in text:
+              if '</body>' not in text:
+                  raise SystemExit('index.html has no </body> tag')
+              text = text.replace('</body>', tag + '</body>', 1)
+              p.write_text(text, encoding='utf-8')
+              print('index.html patched')
+          else:
+              print('index.html already patched')
+          PY
+
+      - name: Commit change if needed
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "No index change needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Load map category enhancement module"
+          git push

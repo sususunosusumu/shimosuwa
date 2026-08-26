@@ -6,6 +6,7 @@ on:
       - "scripts/enable_extra_places.py"
       - ".github/workflows/enable-extra-places.yml"
       - "data/places_extra.csv"
+      - "data/places_services.csv"
   workflow_dispatch:
 
 permissions:

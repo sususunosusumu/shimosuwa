@@ -1,0 +1,3 @@
+agency_id,agency_name,agency_url,agency_timezone,agency_lang
+AZAMI_AGENCY,下諏訪町循環バス・諏訪湖周スワンバス,https://www.town.shimosuwa.lg.jp/,Asia/Tokyo,ja
+SWAN_AGENCY,下諏訪町循環バス・諏訪湖周スワンバス,https://www.town.shimosuwa.lg.jp/,Asia/Tokyo,ja

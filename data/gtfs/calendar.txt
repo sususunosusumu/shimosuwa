@@ -1,0 +1,5 @@
+service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date
+AZAMI_DAILY,1,1,1,1,1,1,1,20260401,20270331
+AZAMI_WEEKEND,0,0,0,0,0,1,1,20260401,20270331
+AZAMI_WKD,1,1,1,1,1,0,0,20260401,20270331
+SWAN_DAILY,1,1,1,1,1,1,1,20260401,20270331

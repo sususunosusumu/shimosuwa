@@ -1,0 +1,7 @@
+route_id,agency_id,route_short_name,route_long_name,route_type
+AZAMI_AZAMI_HAGIKURA_HOSHIGAOKA,AZAMI_JRバス関東ほか,萩倉・星が丘線,あざみ号 萩倉・星が丘線,3
+AZAMI_AZAMI_TAKEI,AZAMI_JRバス関東ほか,武居線,あざみ号 武居線,3
+AZAMI_AZAMI_AKASUNA_HIGASHIYAMADA,AZAMI_JRバス関東ほか,赤砂・東山田線,あざみ号 赤砂・東山田線,3
+AZAMI_AZAMI_TAKAGI_TAKAHAMA,AZAMI_JRバス関東ほか,高木・高浜線,あざみ号 高木・高浜線,3
+SWAN_SWAN_INNER,SWAN_JRバス関東ほか,スワンバス内回り,諏訪湖周スワンバス 内回り線,3
+SWAN_SWAN_OUTER,SWAN_JRバス関東ほか,スワンバス外回り,諏訪湖周スワンバス 外回り線,3

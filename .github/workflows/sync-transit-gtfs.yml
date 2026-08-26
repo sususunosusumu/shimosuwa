@@ -1,0 +1,62 @@
+name: Sync transit GTFS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/sync-transit-gtfs.yml'
+      - 'transit-routing.js'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download and extract Shimosuwa transit GTFS
+        run: |
+          set -euo pipefail
+          mkdir -p data/gtfs
+          curl -L --fail --retry 3 \
+            -o /tmp/shimosuwa_gtfs.zip \
+            https://raw.githubusercontent.com/sususunosusumu/SHIMOSUWA-LAB/main/GTFS/shimosuwa_azami_swan_merged_gtfs_v6.zip
+          rm -f data/gtfs/*.txt
+          unzip -j -o /tmp/shimosuwa_gtfs.zip '*.txt' -d data/gtfs
+          printf '%s\n' 'Source: sususunosusumu/SHIMOSUWA-LAB/GTFS/shimosuwa_azami_swan_merged_gtfs_v6.zip' > data/gtfs/SOURCE.txt
+          printf '%s\n' "Synced: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> data/gtfs/SOURCE.txt
+          ls -la data/gtfs
+
+      - name: Ensure transit module is loaded
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          text = p.read_text(encoding='utf-8')
+          old = '<script src="transit-routing.js?v=6.0"></script>'
+          if old not in text:
+              tag = old
+              if '</body>' not in text:
+                  raise SystemExit('index.html has no </body> tag')
+              text = text.replace('</body>', tag + '</body>', 1)
+              p.write_text(text, encoding='utf-8')
+              print('transit module added')
+          else:
+              print('transit module already present')
+          PY
+
+      - name: Commit synchronized transit data
+        run: |
+          if git diff --quiet -- data/gtfs index.html; then
+            echo "No GTFS/index changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/gtfs index.html
+          git commit -m "Sync Azami and Swan GTFS for transit routing"
+          git push

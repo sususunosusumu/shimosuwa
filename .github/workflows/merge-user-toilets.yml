@@ -1,0 +1,34 @@
+name: Merge user-confirmed toilet Places
+
+on:
+  push:
+    paths:
+      - "data/places_toilets_user.csv"
+      - "scripts/merge_user_toilets.py"
+      - ".github/workflows/merge-user-toilets.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Merge toilet Places into services
+        run: python scripts/merge_user_toilets.py
+      - name: Commit merged service data
+        run: |
+          if git diff --quiet -- data/places_services.csv; then
+            echo "No service data changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/places_services.csv
+          git commit -m "Merge user-confirmed toilet Places"
+          git push

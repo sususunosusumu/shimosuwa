@@ -17,21 +17,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Add map enhancement module to index
+      - name: Add or update map enhancement module in index
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
+
           p = Path('index.html')
           text = p.read_text(encoding='utf-8')
-          tag = '<script src="map-enhancements.js?v=5.0"></script>'
-          if tag not in text:
+          tag = '<script src="map-enhancements.js?v=5.1"></script>'
+
+          pattern = r'<script src="map-enhancements\.js(?:\?v=[^"]+)?"></script>'
+          if re.search(pattern, text):
+              new_text = re.sub(pattern, tag, text, count=1)
+          else:
               if '</body>' not in text:
                   raise SystemExit('index.html has no </body> tag')
-              text = text.replace('</body>', tag + '</body>', 1)
-              p.write_text(text, encoding='utf-8')
-              print('index.html patched')
+              new_text = text.replace('</body>', tag + '</body>', 1)
+
+          if new_text != text:
+              p.write_text(new_text, encoding='utf-8')
+              print('index.html updated to map enhancements v5.1')
           else:
-              print('index.html already patched')
+              print('index.html already uses v5.1')
           PY
 
       - name: Commit change if needed
@@ -43,5 +51,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git commit -m "Load map category enhancement module"
+          git commit -m "Load map facility enhancement v5.1"
           git push

@@ -1,0 +1,33 @@
+name: Add point search filters
+
+on:
+  push:
+    paths:
+      - "scripts/add_point_search_filters.py"
+      - ".github/workflows/add-point-search-filters.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Patch index
+        run: python scripts/add_point_search_filters.py
+      - name: Commit index update
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "No index changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Add point name and category filters"
+          git push

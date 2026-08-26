@@ -1,2 +1,2 @@
 Source: sususunosusumu/SHIMOSUWA-LAB/GTFS/shimosuwa_azami_swan_merged_gtfs_v6.zip
-Synced: 2026-08-26T11:57:09Z
+Synced: 2026-08-26T11:59:24Z

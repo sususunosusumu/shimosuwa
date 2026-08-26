@@ -1,0 +1,33 @@
+name: Add toilet condition editor
+
+on:
+  push:
+    paths:
+      - "scripts/add_toilet_condition_editor.py"
+      - ".github/workflows/add-toilet-condition-editor.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Patch index
+        run: python scripts/add_toilet_condition_editor.py
+      - name: Commit index update
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "No index changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Show toilet usage conditions in Place details"
+          git push

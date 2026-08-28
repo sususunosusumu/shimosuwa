@@ -56,7 +56,7 @@ async function loadAll(){
   places=applyManagementDefaults(places);
   return {places,management:parseCSV(managementText),files:{base:BASE_FILES,attributes:ATTR_FILES,management:MANAGEMENT_FILE}};
 }
-function managementHeaders(){return ['place_id','名称','おすすめ度','自動提案','おすすめ用途','おすすめ時間帯','対象','除外条件','公開メモ','運営メモ','管理更新日','営業日_override','営業時間_override','定休日_override','朝食向き_override','おやつ向き_override','昼食向き_override','夕食向き_override','休憩向き_override','観光向き_override','買い物向き_override','雨の日向き_override','子ども向き_override','高齢者向き_override','一人向き_override','短時間立寄り向き_override','最短滞在時間_分_override','推奨滞在時間_分_override','最大滞在時間_分_override'];}
+function managementHeaders(){return ['place_id','名称','種別','カテゴリ','サブカテゴリ','住所','latitude','longitude','おすすめ度','自動提案','おすすめ用途','おすすめ時間帯','対象','除外条件','公開メモ','運営メモ','管理更新日','営業日_override','営業時間_override','定休日_override','朝食向き_override','おやつ向き_override','昼食向き_override','夕食向き_override','休憩向き_override','観光向き_override','買い物向き_override','雨の日向き_override','子ども向き_override','高齢者向き_override','一人向き_override','短時間立寄り向き_override','体験・できること','最短滞在時間_分_override','推奨滞在時間_分_override','最大滞在時間_分_override','屋内外','徒歩アクセス難易度','坂道','トイレ','多目的トイレ','座れる場所','車椅子対応','駐車場','最寄りバス停','情報源_web','確認ステータス'];}
 function effective(p,name){const o=p[name+'_override'];return o!==undefined&&o!==''?o:(p[name]??'');}
 function autoLevel(p){return String(p['自動提案']||'normal');}
 function recommendation(p){return Math.max(1,Math.min(5,num(p['おすすめ度'],3)));}

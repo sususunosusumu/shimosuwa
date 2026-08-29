@@ -46,7 +46,8 @@
     const modal=document.getElementById('placeGuideModal');
     if(!modal||!p)return;
     const rec=(() => { try { return PlaceData.recommendation(p); } catch (_) { return Number(p['おすすめ度']||3); } })();
-    const mapUrl=p['Googleマップ検索URL'] || '';
+    const mapUrl=p['GoogleマップURL_確定'] || p['Googleマップ検索URL'] || '';
+    const officialUrl=p['公式WebページURL'] || p['公式URL'] || p['Webサイト'] || '';
     const source=p['情報源_web'] || p['情報源'] || '';
     const experience=p['体験・できること'] || '';
     const memo=p['公開メモ'] || '';
@@ -82,6 +83,7 @@
       </div>
       <div class="pg-actions">
         ${lat&&lng?'<button class="pg-mapfocus">地図で位置を見る</button>':''}
+        ${officialUrl?`<a class="pg-link pg-official" href="${e(officialUrl)}" target="_blank" rel="noopener">公式サイトを開く</a>`:''}
         ${mapUrl?`<a class="pg-link" href="${e(mapUrl)}" target="_blank" rel="noopener">Googleマップで開く</a>`:''}
       </div>
       ${source?`<details class="pg-source"><summary>情報源</summary><div>${e(source)}</div></details>`:''}
@@ -152,7 +154,7 @@
       .pg-modal{position:fixed;inset:0;z-index:10000;background:rgba(15,23,42,.42);display:none;align-items:center;justify-content:center;padding:18px;backdrop-filter:blur(3px)}
       .pg-modal.show{display:flex}.pg-lock{overflow:hidden}.pg-panel{width:min(760px,100%);max-height:min(84vh,820px);overflow:auto;background:#fff;border-radius:22px;box-shadow:0 30px 90px rgba(0,0,0,.28);padding:22px;animation:pgpop .18s ease-out}
       @keyframes pgpop{from{opacity:0;transform:scale(.95) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
-      .pg-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.pg-head h2{font-size:25px;line-height:1.25;margin:3px 0 5px}.pg-kind{font-size:12px;color:#667085}.pg-stars{color:#9a6b00;font-weight:900}.pg-stars span{color:#667085;font-size:12px;margin-left:7px}.pg-close{border:0;background:#eef1f3;color:#34434f;width:38px;height:38px;border-radius:50%;font-size:24px;line-height:1;padding:0;flex:0 0 auto}.pg-lead,.pg-experience{margin-top:13px;padding:11px 13px;border-radius:12px;background:#f5f8f7;line-height:1.6}.pg-experience{background:#f7f7fb}.pg-chips{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}.pg-chip{font-size:11px;background:#e8f2ee;color:#245e52;border-radius:999px;padding:4px 8px;font-weight:800}.pg-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;border-top:1px solid #edf0f2;margin-top:10px;padding-top:10px}.pg-row{display:grid;grid-template-columns:105px 1fr;gap:8px;padding:7px 0;border-bottom:1px solid #f1f3f4;font-size:13px;line-height:1.5}.pg-label{color:#667085;font-weight:700}.pg-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.pg-actions button,.pg-link{display:inline-block;border:0;border-radius:10px;padding:10px 13px;background:#245e52;color:white;text-decoration:none;font-weight:800;font-size:13px}.pg-link{background:#edf0f2;color:#34434f}.pg-source{margin-top:16px;font-size:11px;color:#667085;word-break:break-all}.pg-source summary{cursor:pointer;font-weight:700}.pg-source div{margin-top:6px}.pg-body{min-height:120px}
+      .pg-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.pg-head h2{font-size:25px;line-height:1.25;margin:3px 0 5px}.pg-kind{font-size:12px;color:#667085}.pg-stars{color:#9a6b00;font-weight:900}.pg-stars span{color:#667085;font-size:12px;margin-left:7px}.pg-close{border:0;background:#eef1f3;color:#34434f;width:38px;height:38px;border-radius:50%;font-size:24px;line-height:1;padding:0;flex:0 0 auto}.pg-lead,.pg-experience{margin-top:13px;padding:11px 13px;border-radius:12px;background:#f5f8f7;line-height:1.6}.pg-experience{background:#f7f7fb}.pg-chips{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}.pg-chip{font-size:11px;background:#e8f2ee;color:#245e52;border-radius:999px;padding:4px 8px;font-weight:800}.pg-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;border-top:1px solid #edf0f2;margin-top:10px;padding-top:10px}.pg-row{display:grid;grid-template-columns:105px 1fr;gap:8px;padding:7px 0;border-bottom:1px solid #f1f3f4;font-size:13px;line-height:1.5}.pg-label{color:#667085;font-weight:700}.pg-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.pg-actions button,.pg-link{display:inline-block;border:0;border-radius:10px;padding:10px 13px;background:#245e52;color:white;text-decoration:none;font-weight:800;font-size:13px}.pg-link{background:#edf0f2;color:#34434f}.pg-official{background:#e7f1ed;color:#184b40}.pg-source{margin-top:16px;font-size:11px;color:#667085;word-break:break-all}.pg-source summary{cursor:pointer;font-weight:700}.pg-source div{margin-top:6px}.pg-body{min-height:120px}
       @media(max-width:650px){.pg-panel{padding:17px;border-radius:17px}.pg-grid{grid-template-columns:1fr}.pg-head h2{font-size:21px}.pg-row{grid-template-columns:90px 1fr}}
     `;
     document.head.appendChild(style);

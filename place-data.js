@@ -45,6 +45,48 @@ function defaultManagement(p){
   return {'おすすめ度':score,'自動提案':level,'おすすめ時間帯':'','対象':'','除外条件':'','公開メモ':'','運営メモ':'','管理更新日':''};
 }
 function applyManagementDefaults(rows){return rows.map(p=>({...defaultManagement(p),...p}));}
+function localJSON(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null}}
+function applyLegacyCoordinates(rows){
+  const stats={googlePins:0,manualEdits:0,addressCache:0,restored:0,alreadyHad:0,total:rows.length,storageAvailable:true};
+  try{void localStorage.length}catch(e){stats.storageAvailable=false;return stats}
+  for(const p of rows){
+    if(hasCoord(p)){stats.alreadyHad++;continue}
+    const id=String(p.place_id||'').trim();
+    let restored=false;
+    if(id){
+      const x=localJSON('gmap-pin:'+id);
+      if(x&&Number.isFinite(+x.lat)&&Number.isFinite(+x.lng)){
+        p.latitude=+x.lat;p.longitude=+x.lng;
+        p['座標ステータス']=x.status||'旧Google座標復元';
+        p['座標情報源']='旧Google Placesブラウザ保存';
+        if(x.googlePlaceId)p.google_place_id=x.googlePlaceId;
+        if(x.formattedAddress)p['Google確認住所']=x.formattedAddress;
+        if(x.url)p['GoogleマップURL_確定']=x.url;
+        p._legacy_coordinate_source='google';stats.googlePins++;restored=true;
+      }
+      if(!restored){
+        const x=localJSON('point-edit:place:'+id);
+        if(x&&Number.isFinite(+x.lat)&&Number.isFinite(+x.lng)){
+          p.latitude=+x.lat;p.longitude=+x.lng;
+          p['座標ステータス']='旧手動補正復元';p['座標情報源']='旧メンテナンス画面ブラウザ保存';
+          p._legacy_coordinate_source='manual';stats.manualEdits++;restored=true;
+        }
+      }
+    }
+    if(!restored&&p['住所']){
+      const x=localJSON('geo:'+p['住所']);
+      if(x&&Number.isFinite(+x.lat)&&Number.isFinite(+x.lng)){
+        p.latitude=+x.lat;p.longitude=+x.lng;
+        p['座標ステータス']='旧住所検索復元';p['座標情報源']='旧住所検索ブラウザ保存';
+        p._legacy_coordinate_source='address';stats.addressCache++;restored=true;
+      }
+    }
+    if(restored)stats.restored++;
+  }
+  stats.withCoord=rows.filter(hasCoord).length;
+  stats.missing=rows.length-stats.withCoord;
+  return stats;
+}
 async function fetchText(path){try{const r=await fetch(path+'?v='+Date.now(),{cache:'no-store'});return r.ok?await r.text():'';}catch(e){return'';}}
 async function loadAll(){
   const baseTexts=await Promise.all(BASE_FILES.map(fetchText));
@@ -54,11 +96,12 @@ async function loadAll(){
   places=mergeRows(places,attrTexts.flatMap(parseCSV));
   places=mergeRows(places,parseCSV(managementText));
   places=applyManagementDefaults(places);
-  return {places,management:parseCSV(managementText),files:{base:BASE_FILES,attributes:ATTR_FILES,management:MANAGEMENT_FILE}};
+  const legacyStats=applyLegacyCoordinates(places);
+  return {places,management:parseCSV(managementText),legacyStats,files:{base:BASE_FILES,attributes:ATTR_FILES,management:MANAGEMENT_FILE}};
 }
 function managementHeaders(){return ['place_id','名称','種別','カテゴリ','サブカテゴリ','住所','latitude','longitude','おすすめ度','自動提案','おすすめ用途','おすすめ時間帯','対象','除外条件','公開メモ','運営メモ','管理更新日','営業日_override','営業時間_override','定休日_override','朝食向き_override','おやつ向き_override','昼食向き_override','夕食向き_override','休憩向き_override','観光向き_override','買い物向き_override','雨の日向き_override','子ども向き_override','高齢者向き_override','一人向き_override','短時間立寄り向き_override','体験・できること','最短滞在時間_分_override','推奨滞在時間_分_override','最大滞在時間_分_override','屋内外','徒歩アクセス難易度','坂道','トイレ','多目的トイレ','座れる場所','車椅子対応','駐車場','最寄りバス停','情報源_web','確認ステータス'];}
 function effective(p,name){const o=p[name+'_override'];return o!==undefined&&o!==''?o:(p[name]??'');}
 function autoLevel(p){return String(p['自動提案']||'normal');}
 function recommendation(p){return Math.max(1,Math.min(5,num(p['おすすめ度'],3)));}
-window.PlaceData={parseCSV,toCSV,truthy,no,num,lat,lng,hasCoord,keyOf,mergeRows,loadAll,managementHeaders,effective,autoLevel,recommendation,defaultManagement};
+window.PlaceData={parseCSV,toCSV,truthy,no,num,lat,lng,hasCoord,keyOf,mergeRows,loadAll,managementHeaders,effective,autoLevel,recommendation,defaultManagement,applyLegacyCoordinates};
 })();

@@ -1,5 +1,6 @@
 (() => {
 'use strict';
+if(window.PlaceData?.managementHeaders){const old=PlaceData.managementHeaders;PlaceData.managementHeaders=()=>{const h=old();for(const x of ['公式WebページURL','GoogleマップURL_確定','Googleマップ検索URL','google_place_id','Google確認住所'])if(!h.includes(x))h.splice(Math.min(8,h.length),0,x);return h}}
 function validHttpUrl(v){try{const u=new URL(String(v||'').trim());return /^https?:$/.test(u.protocol)}catch(e){return false}}
 function parsePair(v){const m=String(v||'').replace(/[，、]/g,',').match(/(-?\d{1,2}(?:\.\d+)?)\s*,\s*(-?\d{2,3}(?:\.\d+)?)/);if(!m)return null;const lat=+m[1],lng=+m[2];return lat>=-90&&lat<=90&&lng>=-180&&lng<=180?{lat,lng}:null}
 function parseGoogleUrl(v){

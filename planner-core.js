@@ -484,6 +484,348 @@ async function previewMove(mode, from, to, start, options = {}) {
   throw new Error('Unsupported transport mode: ' + mode);
 }
 
+
+function numberList(value) {
+  return (String(value ?? '').match(/\d+(?:\.\d+)?/g) || []).map(Number);
+}
+
+function stayMinutes(wish, place, placeData = window.PlaceData) {
+  if (wish.duration !== '' && +wish.duration > 0) return Math.max(10, +wish.duration);
+  const raw = place.raw || place;
+  const value = placeData && typeof placeData.effective === 'function'
+    ? placeData.effective(raw, '推奨滞在時間_分')
+    : raw['推奨滞在時間_分'];
+  const nums = numberList(value);
+  let d = nums.length > 1 ? (nums[0] + nums[1]) / 2 : (nums[0] || 30);
+  return Math.max(15, Math.round(d / 5) * 5);
+}
+
+function transportItems(from, to, start, movement) {
+  if (!movement) return [];
+  if (movement.kind === 'simple') {
+    return [{
+      type:'travel',
+      from:start,
+      to:movement.finish,
+      mode:movement.mode,
+      title:movement.mode,
+      meta:from.name + ' → ' + to.name,
+      fixedTransport:false,
+      fallback:!!movement.fallback
+    }];
+  }
+
+  const items = [];
+  let t = start;
+  const board = stopPoint(movement.board);
+  const alight = stopPoint(movement.alight);
+
+  if (movement.walkIn > 0) {
+    items.push({
+      type:'travel', from:t, to:t + movement.walkIn, mode:'walk',
+      title:'walk-to-bus', meta:from.name + ' → ' + board.name,
+      fixedTransport:false
+    });
+    t += movement.walkIn;
+  }
+  if (movement.wait > 0) {
+    items.push({
+      type:'wait', from:t, to:movement.depart, title:'bus-wait',
+      meta:board.name, fixedTransport:true
+    });
+    t = movement.depart;
+  }
+  items.push({
+    type:'bus', from:movement.depart, to:movement.arrive,
+    title:movement.route, meta:board.name + ' → ' + alight.name,
+    fixedTransport:true
+  });
+  t = movement.arrive;
+
+  if (movement.walkOut > 0) {
+    items.push({
+      type:'travel', from:t, to:t + movement.walkOut, mode:'walk',
+      title:'walk-from-bus', meta:alight.name + ' → ' + to.name,
+      fixedTransport:false
+    });
+  }
+  return items;
+}
+
+async function evaluateWishCandidate(wish, place, window, state, input) {
+  const movement = await previewMove(
+    input.mode,
+    state.current,
+    {name:place.name, lat:place.lat, lng:place.lng},
+    state.now,
+    {
+      config:input.config,
+      gtfsIndex:input.gtfsIndex,
+      day:input.day
+    }
+  );
+  if (!movement) return null;
+
+  const begin = Math.max(movement.finish, window.min);
+  if (begin > window.max + 20) return null;
+  if (!timeOK(place, begin, input.day)) return null;
+
+  const duration = stayMinutes(wish, place, input.placeData);
+  const finish = begin + duration;
+  if (finish > input.end - input.config.goalReserve) return null;
+
+  const goalMove = await previewMove(
+    input.mode,
+    {name:place.name, lat:place.lat, lng:place.lng},
+    input.goal,
+    finish,
+    {
+      config:input.config,
+      gtfsIndex:input.gtfsIndex,
+      day:input.day
+    }
+  );
+  if (!goalMove || goalMove.finish > input.end) return null;
+
+  const context = {
+    policy:input.policy,
+    rainSuitable:!!place.suitable?.rain,
+    seniorSuitable:!!place.suitable?.senior,
+    autoLevel:place.autoLevel
+  };
+  let score = scorePlace(place, state.current, input.goal, context);
+  const wait = Math.max(0, begin - movement.finish);
+  score -= wait * 1.4;
+  if (window.target !== null) score -= Math.abs(begin - window.target) * 0.65;
+  if (begin > window.max) score -= 90;
+
+  return {place, movement, begin, duration, finish, goalMove, score, wait};
+}
+
+async function chooseWish(rem, windows, state, input) {
+  let best = null;
+
+  for (const wish of rem) {
+    if (wish.type === TYPE.free) continue;
+    const window = windows.get(wish.id);
+    if (window.target !== null && state.now < window.min - 50) continue;
+
+    let candidates;
+    if (wish.placeId) {
+      const raw = input.rawPlaces.find(p => {
+        const normalized = normalizePlace(p, input.placeData);
+        return normalized.id === wish.placeId;
+      });
+      candidates = raw ? [normalizePlace(raw, input.placeData)] : [];
+    } else {
+      candidates = candidatePool(input.rawPlaces, wish.type, {
+        at:Math.max(state.now, window.min),
+        day:input.day,
+        allowConditional:input.allowConditional,
+        placeData:input.placeData
+      });
+    }
+
+    const usedFiltered = candidates
+      .filter(p => wish.placeId || !state.used.has(p.id))
+      .map(p => ({
+        p,
+        preliminary:scorePlace(p, state.current, input.goal, {
+          policy:input.policy,
+          rainSuitable:!!p.suitable?.rain,
+          seniorSuitable:!!p.suitable?.senior,
+          autoLevel:p.autoLevel
+        })
+      }))
+      .sort((a,b) => b.preliminary - a.preliminary)
+      .slice(0, 18);
+
+    for (const entry of usedFiltered) {
+      const evaluated = await evaluateWishCandidate(wish, entry.p, window, state, input);
+      if (!evaluated) continue;
+      const total = urgency(window, state.now) + evaluated.score;
+      if (!best || total > best.total) best = {wish, evaluated, total};
+    }
+  }
+
+  if (best) return best;
+
+  // If all time-window candidates are too early, evaluate every remaining wish.
+  for (const wish of rem) {
+    if (wish.type === TYPE.free) continue;
+    const window = windows.get(wish.id);
+    const candidates = wish.placeId
+      ? input.rawPlaces.map(p => normalizePlace(p, input.placeData)).filter(p => p.id === wish.placeId)
+      : candidatePool(input.rawPlaces, wish.type, {
+          at:Math.max(state.now, window.min),
+          day:input.day,
+          allowConditional:input.allowConditional,
+          placeData:input.placeData
+        });
+
+    for (const place of candidates.slice(0, 18)) {
+      if (!wish.placeId && state.used.has(place.id)) continue;
+      const evaluated = await evaluateWishCandidate(wish, place, window, state, input);
+      if (!evaluated) continue;
+      if (!best || evaluated.score > best.total) best = {wish, evaluated, total:evaluated.score};
+    }
+  }
+
+  return best;
+}
+
+/**
+ * Shadow schedule builder.
+ *
+ * This intentionally does not render DOM and does not replace V1.11 yet.
+ * It returns a normalized itinerary for side-by-side comparison.
+ */
+async function buildPlan(options) {
+  const config = {...DEFAULT_CONFIG, ...(options.config || {})};
+  const start = toMinutes(options.startTime);
+  const end = toMinutes(options.endTime);
+  if (start === null || end === null || end <= start) throw new Error('Invalid start/end time');
+  if (!options.start || !options.goal) throw new Error('START and GOAL are required');
+
+  const rawPlaces = options.places || [];
+  const wishes = (options.wishes || []).map((w, i) => ({
+    id:w.id ?? i + 1,
+    type:w.type || w.t,
+    duration:w.duration ?? w.d ?? '',
+    manualTime:w.manualTime || w._manualTime || w.time || '',
+    band:w.band || w._band || 'auto',
+    placeId:w.placeId || w.pid || ''
+  }));
+
+  const input = {
+    config,
+    start:options.start,
+    goal:options.goal,
+    startTime:start,
+    end,
+    day:options.day || '月',
+    mode:options.mode || 'walk',
+    policy:options.policy || 'recommended',
+    allowConditional:!!options.allowConditional,
+    rawPlaces,
+    placeData:options.placeData || window.PlaceData,
+    gtfsIndex:options.gtfsIndex || null
+  };
+
+  const windows = makeTimeWindows(wishes, start, end);
+  const state = {
+    now:start,
+    current:{...options.start},
+    used:new Set(),
+    items:[{type:'place',from:start,to:start,title:options.start.name || 'START',meta:'START'}],
+    completed:[],
+    skipped:[]
+  };
+  const rem = wishes.slice();
+
+  while (rem.length) {
+    const free = rem.find(w => w.type === TYPE.free);
+    const choice = await chooseWish(rem, windows, state, input);
+
+    if (!choice) {
+      if (free) {
+        rem.splice(rem.indexOf(free), 1);
+        const duration = Math.max(10, +(free.duration || 30));
+        const goalMove = await previewMove(input.mode, state.current, input.goal, state.now + duration, {
+          config, gtfsIndex:input.gtfsIndex, day:input.day
+        });
+        if (goalMove && goalMove.finish <= end) {
+          state.items.push({type:'free',from:state.now,to:state.now + duration,title:'free',meta:'自由時間'});
+          state.now += duration;
+          state.completed.push(free.id);
+        } else {
+          state.skipped.push({id:free.id, reason:'time'});
+        }
+        continue;
+      }
+
+      for (const w of rem.splice(0)) state.skipped.push({id:w.id, reason:'no-candidate'});
+      break;
+    }
+
+    const {wish, evaluated} = choice;
+    rem.splice(rem.indexOf(wish), 1);
+
+    const destination = {
+      name:evaluated.place.name,
+      lat:evaluated.place.lat,
+      lng:evaluated.place.lng
+    };
+    const moveItems = transportItems(state.current, destination, state.now, evaluated.movement);
+    state.items.push(...moveItems);
+    state.now = evaluated.movement.finish;
+
+    if (evaluated.begin > state.now) {
+      state.items.push({
+        type:'wait',
+        from:state.now,
+        to:evaluated.begin,
+        title:'少し待つ',
+        meta:windows.get(wish.id).label,
+        fixedTransport:false
+      });
+      state.now = evaluated.begin;
+    }
+
+    state.items.push({
+      type:'act',
+      from:state.now,
+      to:state.now + evaluated.duration,
+      title:evaluated.place.name,
+      meta:wish.type,
+      wishType:wish.type,
+      wishId:wish.id,
+      point:evaluated.place.raw,
+      placeId:evaluated.place.id,
+      flexible:FLEXIBLE_TYPES.has(wish.type),
+      auto:false
+    });
+    state.now += evaluated.duration;
+    state.current = destination;
+    state.used.add(evaluated.place.id);
+    state.completed.push(wish.id);
+  }
+
+  const goalMove = await previewMove(input.mode, state.current, input.goal, state.now, {
+    config,
+    gtfsIndex:input.gtfsIndex,
+    day:input.day
+  });
+
+  if (goalMove) {
+    state.items.push(...transportItems(state.current, input.goal, state.now, goalMove));
+    state.now = goalMove.finish;
+  } else {
+    state.skipped.push({id:'GOAL', reason:'transport'});
+  }
+
+  state.items.push({
+    type:state.now <= end ? 'place' : 'warn',
+    from:end,
+    to:end,
+    title:input.goal.name || 'GOAL',
+    meta:state.now <= end ? 'GOAL' : 'GOAL time over'
+  });
+
+  const optimized = absorbShortGaps(state.items, config);
+
+  return {
+    version:'shadow-plan-0.1',
+    status:state.now <= end && !state.skipped.some(x => x.id === 'GOAL') ? 'ok' : 'review',
+    start,
+    end,
+    finish:state.now,
+    completed:state.completed,
+    skipped:state.skipped,
+    itinerary:optimized
+  };
+}
+
 function urgency(window, now) {
   if (!window || window.target === null) return 0;
   if (now > window.max) return 1000 + (now - window.max) * 10;
@@ -493,7 +835,7 @@ function urgency(window, now) {
 }
 
 const PlannerCore = Object.freeze({
-  version: 'core-0.2-shadow',
+  version: 'core-0.3-shadow',
   DEFAULT_CONFIG,
   TYPE,
   Time: Object.freeze({
@@ -523,6 +865,10 @@ const PlannerCore = Object.freeze({
     nearestStops,
     findBusLeg,
     previewMove
+  }),
+  Schedule: Object.freeze({
+    stayMinutes,
+    buildPlan
   }),
   GapOptimizer: Object.freeze({
     isFlexibleItem,

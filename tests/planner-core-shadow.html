@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Planner Core Shadow Report</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif;max-width:1100px;margin:24px auto;padding:0 16px;color:#1f2933}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.box{border:1px solid #dce2e5;border-radius:12px;padding:14px;margin:12px 0}
+label{display:block;font-size:12px;color:#667085}select,input{padding:7px;border:1px solid #ccd4da;border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:13px}th,td{border-bottom:1px solid #e5e7eb;text-align:left;padding:7px}th{background:#f7f8f9}
+.ok{color:#087f23}.warn{color:#a15c00}.sm{font-size:12px;color:#667085}.pill{display:inline-block;padding:3px 7px;border-radius:999px;background:#eef2f2;margin:2px}
+</style>
+</head>
+<body>
+<h1>Planner Core Shadow Report</h1>
+<p class="sm">本番V1.11には接続しない検証ページ。実CSV/GTFSを新Coreで読み、候補と交通制約を確認します。</p>
+
+<div class="box row">
+  <div><label>曜日</label><select id="day"><option>月</option><option>火</option><option>水</option><option>木</option><option>金</option><option>土</option><option>日</option></select></div>
+  <div><label>確認時刻</label><input id="at" type="time" value="12:00"></div>
+  <div><label>カテゴリ</label><select id="type"><option value="lunch">昼食</option><option value="snack">おやつ</option><option value="landmark">観光</option><option value="onsen">温泉</option><option value="cafe">カフェ</option><option value="park">公園・散歩</option><option value="rest">休憩</option></select></div>
+  <div><label>START</label><select id="start"></select></div>
+  <div><label>GOAL</label><select id="goal"></select></div>
+  <button id="run">再計算</button>
+</div>
+
+<div id="status" class="box">読込中…</div>
+
+<div class="box">
+<h2>候補ランキング</h2>
+<div id="candidateSummary"></div>
+<table><thead><tr><th>#</th><th>Place</th><th>行く価値</th><th>自動提案</th><th>START→Place</th><th>GOALまで</th><th>Score</th></tr></thead><tbody id="rows"></tbody></table>
+</div>
+
+<div class="box">
+<h2>GTFS / バス確認</h2>
+<div id="bus"></div>
+</div>
+
+<script src="../place-data.js"></script>
+<script src="../planner-core.js"></script>
+<script>
+(async()=>{
+  const $=id=>document.getElementById(id);
+  const data=await PlaceData.loadAll();
+  const places=data.places.filter(PlaceData.hasCoord);
+  let gtfs=null;
+  try{gtfs=await PlannerCore.Transport.loadGtfs('../data/gtfs/')}catch(e){console.warn(e)}
+
+  function option(p){return '<option value="'+PlaceData.keyOf(p)+'">'+p['名称']+'</option>'}
+  const points=places.filter(p=>/駅|神社|温泉|公園|観光|役場/.test([p['名称'],p['種別'],p['カテゴリ']].join(' ')));
+  $('start').innerHTML=points.map(option).join('');
+  $('goal').innerHTML=points.map(option).join('');
+
+  const station=places.find(p=>/下諏訪駅/.test(p['名称']||''));
+  if(station){
+    $('goal').value=PlaceData.keyOf(station);
+    $('start').value=PlaceData.keyOf(station);
+  }
+
+  function rawPoint(p){return{name:p['名称'],lat:PlaceData.lat(p),lng:PlaceData.lng(p)}}
+  function selected(id){const key=$(id).value;return places.find(p=>PlaceData.keyOf(p)===key)}
+
+  async function run(){
+    const startP=selected('start'),goalP=selected('goal');
+    if(!startP||!goalP)return;
+    const start=rawPoint(startP),goal=rawPoint(goalP);
+    const at=PlannerCore.Time.toMinutes($('at').value);
+    const type=$('type').value,day=$('day').value;
+    const pool=PlannerCore.PlacePolicy.candidatePool(places,type,{at,day,placeData:PlaceData});
+    const ranked=pool.map(p=>{
+      const score=PlannerCore.PlacePolicy.scorePlace(p,start,goal,{
+        policy:'recommended',
+        rainSuitable:p.suitable.rain,
+        seniorSuitable:p.suitable.senior,
+        autoLevel:p.autoLevel
+      });
+      return{p,score,d1:PlannerCore.Geo.distanceKm(start,p),d2:PlannerCore.Geo.distanceKm(p,goal)};
+    }).sort((a,b)=>b.score-a.score);
+
+    $('candidateSummary').innerHTML=
+      '<span class="pill">候補 '+pool.length+'件</span>'+
+      '<span class="pill">時刻 '+$('at').value+'</span>'+
+      '<span class="pill">行く価値3以上</span>';
+
+    $('rows').innerHTML=ranked.slice(0,30).map((x,i)=>
+      '<tr><td>'+(i+1)+'</td><td>'+x.p.name+'</td><td>★'+x.p.visitValue+'</td><td>'+x.p.autoLevel+'</td><td>'+x.d1.toFixed(2)+' km</td><td>'+x.d2.toFixed(2)+' km</td><td>'+x.score.toFixed(1)+'</td></tr>'
+    ).join('');
+
+    if(gtfs){
+      const leg=PlannerCore.Transport.findBusLeg(gtfs,start,goal,at,day);
+      $('bus').innerHTML=leg
+        ? '<div class="ok">利用可能：'+leg.route+' / 徒歩 '+leg.walkIn+'分 → 待ち '+leg.wait+'分 → バス '+PlannerCore.Time.formatMinutes(leg.depart)+'–'+PlannerCore.Time.formatMinutes(leg.arrive)+' → 徒歩 '+leg.walkOut+'分</div>'
+        : '<div class="warn">徒歩上限10分・バス待ち最大10分の条件では直通候補なし</div>';
+    }else{
+      $('bus').innerHTML='<div class="warn">GTFSを読み込めませんでした</div>';
+    }
+  }
+
+  $('run').onclick=run;
+  $('status').innerHTML=
+    '<span class="ok">PlaceData OK</span>：座標あり '+places.length+'件 / '+
+    (gtfs?'<span class="ok">GTFS OK</span>：停留所 '+gtfs.stops.length+'件':'<span class="warn">GTFS NG</span>');
+  await run();
+})();
+</script>
+</body>
+</html>

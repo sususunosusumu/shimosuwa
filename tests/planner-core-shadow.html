@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ja">
-<head>
+<head><base href="../">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Planner Core Shadow Report</title>
@@ -44,15 +44,15 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{border-bottom:1px
 <div id="plan"></div>
 </div>
 
-<script src="../place-data.js"></script>
-<script src="../planner-core.js"></script>
+<script src="place-data.js"></script>
+<script src="planner-core.js"></script>
 <script>
 (async()=>{
   const $=id=>document.getElementById(id);
   const data=await PlaceData.loadAll();
   const places=data.places.filter(PlaceData.hasCoord);
   let gtfs=null;
-  try{gtfs=await PlannerCore.Transport.loadGtfs('../data/gtfs/')}catch(e){console.warn(e)}
+  try{gtfs=await PlannerCore.Transport.loadGtfs('data/gtfs/')}catch(e){console.warn(e)}
 
   function option(p){return '<option value="'+PlaceData.keyOf(p)+'">'+p['名称']+'</option>'}
   const points=places.filter(p=>/駅|神社|温泉|公園|観光|役場/.test([p['名称'],p['種別'],p['カテゴリ']].join(' ')));

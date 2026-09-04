@@ -227,7 +227,7 @@ function findings(legacy, core, result) {
 async function getGtfsIfNeeded(mode) {
   if (mode !== 'bus') return null;
   try {
-    return await PlannerCore.Transport.loadGtfs('../data/gtfs/');
+    return await PlannerCore.Transport.loadGtfs('data/gtfs/');
   } catch (e) {
     console.warn(e);
     return null;

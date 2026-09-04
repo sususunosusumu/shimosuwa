@@ -243,6 +243,59 @@ function currentConfig() {
   return {...PlannerCore.DEFAULT_CONFIG, walkMax:walk, busWaitMax:10};
 }
 
+
+function setRegisteredPoint(kind, preferredNames) {
+  const found = preferredNames.map(name => A.find(x => x.name === name)).find(Boolean);
+  if (!found) return false;
+  setPoint(kind, found);
+  return true;
+}
+
+function setTransport(mode) {
+  const button = document.querySelector('[data-transport="'+mode+'"]');
+  if (button) button.click();
+}
+
+function setWishes(types) {
+  W=[];
+  seq=0;
+  for (const type of types) addWish(type);
+}
+
+async function applyPreset(name) {
+  const st=$c('st'), et=$c('et');
+  if (!st || !et) return;
+
+  if (name === 'walk-full') {
+    setTransport('walk');
+    st.value='09:00'; et.value='16:00';
+    setRegisteredPoint('s',['下諏訪駅','諏訪大社 下社秋宮']);
+    setRegisteredPoint('g',['下諏訪駅']);
+    setWishes(['landmark','lunch','onsen','snack']);
+  } else if (name === 'bike-short') {
+    setTransport('bike');
+    st.value='10:00'; et.value='14:00';
+    setRegisteredPoint('s',['下諏訪駅']);
+    setRegisteredPoint('g',['下諏訪駅']);
+    setWishes(['landmark','lunch']);
+  } else if (name === 'bus-day') {
+    setTransport('bus');
+    st.value='09:00'; et.value='16:00';
+    setRegisteredPoint('s',['下諏訪駅']);
+    setRegisteredPoint('g',['諏訪大社 下社春宮','下諏訪駅']);
+    setWishes(['landmark','lunch','onsen']);
+  } else if (name === 'two-snacks') {
+    setTransport('walk');
+    st.value='09:00'; et.value='16:00';
+    setRegisteredPoint('s',['下諏訪駅']);
+    setRegisteredPoint('g',['下諏訪駅']);
+    setWishes(['snack','landmark','lunch','onsen','snack']);
+  }
+
+  await new Promise(r=>setTimeout(r,80));
+  await runComparison();
+}
+
 async function runComparison() {
   const btn = $c('compareRun');
   btn.disabled = true;
@@ -308,4 +361,7 @@ async function runComparison() {
 
 const run = $c('compareRun');
 if (run) run.addEventListener('click', runComparison);
+document.querySelectorAll('#comparePresets [data-preset]').forEach(button=>{
+  button.addEventListener('click',()=>applyPreset(button.dataset.preset));
+});
 })();

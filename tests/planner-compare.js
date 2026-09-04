@@ -127,6 +127,44 @@ function sequence(items) {
   return activityRows(items).map(x => x.title);
 }
 
+
+function pointByLegacyTitle(title) {
+  const raw = P.find(p => String(p['名称'] || '').trim() === String(title || '').trim());
+  return raw && PlaceData.hasCoord(raw)
+    ? {name:raw['名称'],lat:PlaceData.lat(raw),lng:PlaceData.lng(raw)}
+    : null;
+}
+
+function routeQuality(items, isCore) {
+  const points=[{...pt.s}];
+  for(const x of activityRows(items)){
+    let p=null;
+    if(isCore && x.point && PlaceData.hasCoord(x.point)){
+      p={name:x.point['名称'],lat:PlaceData.lat(x.point),lng:PlaceData.lng(x.point)};
+    }else{
+      p=pointByLegacyTitle(x.title);
+    }
+    if(p)points.push(p);
+  }
+  points.push({...pt.g});
+  if(points.length<2)return null;
+
+  let path=0,away=0;
+  for(let i=1;i<points.length;i++){
+    path+=PlannerCore.Geo.distanceKm(points[i-1],points[i]);
+    const before=PlannerCore.Geo.distanceKm(points[i-1],pt.g);
+    const after=PlannerCore.Geo.distanceKm(points[i],pt.g);
+    if(after>before+0.12)away++;
+  }
+  const direct=PlannerCore.Geo.distanceKm(pt.s,pt.g);
+  return{
+    path,
+    direct,
+    detourRatio:direct>0?path/direct:null,
+    away
+  };
+}
+
 function overlapScore(a, b) {
   if (!a.length && !b.length) return 1;
   const setA = new Set(a), setB = new Set(b);
@@ -143,6 +181,7 @@ function findings(legacy, core, result) {
   const lTravel = travelMinutes(legacy), cTravel = travelMinutes(core);
   const lAvg = avgVisitValue(legacy,false), cAvg = avgVisitValue(core,true);
   const seqScore = overlapScore(sequence(legacy), sequence(core));
+  const lRoute = routeQuality(legacy,false), cRoute = routeQuality(core,true);
 
   const add = (level, text) => out.push({level,text});
 
@@ -170,6 +209,15 @@ function findings(legacy, core, result) {
 
   if (seqScore >= .75) add('good','選ばれたPlaceは旧版と概ね一致しています。');
   else add('warn','旧版と新Coreで選ばれるPlaceに差があります。一致率 '+Math.round(seqScore*100)+'%。');
+
+  if (lRoute && cRoute) {
+    if (cRoute.away < lRoute.away) add('good','GOALから遠ざかる区間が減っています（旧 '+lRoute.away+'回 / Core '+cRoute.away+'回）。');
+    else if (cRoute.away > lRoute.away) add('warn','GOALから遠ざかる区間が増えています（旧 '+lRoute.away+'回 / Core '+cRoute.away+'回）。');
+    if (cRoute.detourRatio !== null && lRoute.detourRatio !== null) {
+      if (cRoute.detourRatio <= lRoute.detourRatio) add('good','直線距離に対する総迂回率は維持または改善しています（旧 '+lRoute.detourRatio.toFixed(2)+' / Core '+cRoute.detourRatio.toFixed(2)+'）。');
+      else if (cRoute.detourRatio > lRoute.detourRatio + 0.20) add('warn','新Coreの総迂回率が旧版より大きいです（旧 '+lRoute.detourRatio.toFixed(2)+' / Core '+cRoute.detourRatio.toFixed(2)+'）。');
+    }
+  }
 
   if (result.skipped?.length) add('bad','新Coreに未消化があります：'+result.skipped.map(x=>x.id+':'+x.reason).join(', '));
   if (!out.length) add('warn','大きな差分指標はありません。旅程内容を目視確認してください。');
@@ -240,11 +288,14 @@ async function runComparison() {
 
     const legacyActs = activityRows(legacy).length;
     const coreActs = activityRows(core).length;
+    const lRoute=routeQuality(legacy,false),cRoute=routeQuality(core,true);
     $c('compareSummary').innerHTML =
       '<span class="pill">旧 Place '+legacyActs+'件</span>'+
       '<span class="pill">Core Place '+coreActs+'件</span>'+
       '<span class="pill">旧 移動 '+travelMinutes(legacy)+'分</span>'+
       '<span class="pill">Core 移動 '+travelMinutes(core)+'分</span>'+
+      (lRoute?'<span class="pill">旧 逆方向 '+lRoute.away+'回</span>':'')+
+      (cRoute?'<span class="pill">Core 逆方向 '+cRoute.away+'回</span>':'')+
       '<span class="pill">Core '+coreResult.status+'</span>';
   } catch (e) {
     console.error(e);

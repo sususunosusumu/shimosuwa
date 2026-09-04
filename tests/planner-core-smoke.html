@@ -123,6 +123,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans
     return out.length===1 && out[0].id==='2';
   });
 
+  test('長い昼食待ちに自動立ち寄りを入れられる',async()=>{
+    const mockPD={
+      effective:(p,n)=>p[n]||'',
+      truthy:v=>String(v)==='○',
+      keyOf:p=>p.place_id,
+      lat:p=>+p.latitude,
+      lng:p=>+p.longitude,
+      recommendation:p=>+p['おすすめ度'],
+      autoLevel:p=>p['自動提案']||'normal'
+    };
+    const places=[
+      {place_id:'park','名称':'公園','種別':'公園',latitude:'36.0753',longitude:'138.0832','おすすめ度':'4','自動提案':'normal','観光向き':'○','休憩向き':'○','推奨滞在時間_分':'30'},
+      {place_id:'lunch','名称':'食堂','種別':'飲食店',latitude:'36.0756',longitude:'138.0834','おすすめ度':'4','自動提案':'normal','昼食向き':'○','営業時間':'11:30-14:00','推奨滞在時間_分':'50'}
+    ];
+    const plan=await PlannerCore.Schedule.buildPlan({
+      start:{name:'START',lat:36.075,lng:138.083},
+      goal:{name:'GOAL',lat:36.076,lng:138.084},
+      startTime:'09:00',endTime:'13:30',day:'月',mode:'walk',
+      places,placeData:mockPD,
+      wishes:[{id:1,type:'lunch'}]
+    });
+    return plan.autoAdded.length>=1 && plan.itinerary.some(x=>x.auto);
+  });
+
   test('バス待ちは吸収しない',()=>{
     const input=[
       {type:'act',wishType:'park',from:10*60,to:10*60+30,flexible:true},

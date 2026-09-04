@@ -17,8 +17,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans
   const rows=[];
   function test(name, fn){
     try{
-      const ok=!!fn();
-      rows.push({name,ok});
+      const value=fn();
+      rows.push({name,ok:value});
     }catch(e){
       rows.push({name,ok:false,error:String(e&&e.stack||e)});
     }

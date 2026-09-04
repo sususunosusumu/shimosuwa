@@ -38,6 +38,12 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{border-bottom:1px
 <div id="bus"></div>
 </div>
 
+<div class="box">
+<h2>Shadow Schedule</h2>
+<p class="sm">固定サンプル「観光・昼食・温泉・おやつ」を新Coreだけで組み立てます。入力順は旅程順として固定しません。</p>
+<div id="plan"></div>
+</div>
+
 <script src="../place-data.js"></script>
 <script src="../planner-core.js"></script>
 <script>
@@ -95,6 +101,33 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{border-bottom:1px
         : '<div class="warn">徒歩上限10分・バス待ち最大10分の条件では直通候補なし</div>';
     }else{
       $('bus').innerHTML='<div class="warn">GTFSを読み込めませんでした</div>';
+    }
+
+    try{
+      const plan=await PlannerCore.Schedule.buildPlan({
+        start,
+        goal,
+        startTime:'09:00',
+        endTime:'16:00',
+        day,
+        mode:'walk',
+        policy:'recommended',
+        places,
+        placeData:PlaceData,
+        wishes:[
+          {id:1,type:'landmark'},
+          {id:2,type:'lunch'},
+          {id:3,type:'onsen'},
+          {id:4,type:'snack'}
+        ]
+      });
+      $('plan').innerHTML=
+        '<div><span class="pill">status '+plan.status+'</span><span class="pill">完了 '+plan.completed.length+'</span><span class="pill">未消化 '+plan.skipped.length+'</span></div>'+
+        '<table><thead><tr><th>時間</th><th>種類</th><th>内容</th><th>補足</th></tr></thead><tbody>'+
+        plan.itinerary.map(x=>'<tr><td>'+PlannerCore.Time.formatMinutes(x.from)+'–'+PlannerCore.Time.formatMinutes(x.to)+'</td><td>'+x.type+'</td><td>'+(x.title||'')+'</td><td>'+(x.meta||'')+(x.gapAbsorbed?' / 待ち'+x.gapAbsorbed+'分吸収':'')+'</td></tr>').join('')+
+        '</tbody></table>';
+    }catch(e){
+      $('plan').innerHTML='<div class="warn">Shadow plan error: '+String(e)+'</div>';
     }
   }
 

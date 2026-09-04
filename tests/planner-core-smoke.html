@@ -61,6 +61,68 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans
       out[1].to===11*60+30;
   });
 
+
+  test('徒歩上限10分を超える徒歩は候補外',()=>{
+    const a={lat:36.075,lng:138.083};
+    const b={lat:36.090,lng:138.083};
+    return PlannerCore.Transport.previewMove('walk',a,b,9*60).then(x=>x===null);
+  });
+
+  test('GTFSバス待ち10分以内を採用',()=>{
+    const index=PlannerCore.Transport.createGtfsIndex({
+      stops:[
+        {stop_id:'A',stop_name:'A',stop_lat:'36.075',stop_lon:'138.083'},
+        {stop_id:'B',stop_name:'B',stop_lat:'36.080',stop_lon:'138.090'}
+      ],
+      routes:[{route_id:'R1',route_short_name:'Test'}],
+      trips:[{trip_id:'T1',route_id:'R1',service_id:'S1'}],
+      stopTimes:[
+        {trip_id:'T1',stop_id:'A',stop_sequence:'1',departure_time:'09:08'},
+        {trip_id:'T1',stop_id:'B',stop_sequence:'2',arrival_time:'09:18',departure_time:'09:18'}
+      ],
+      calendar:[{service_id:'S1',monday:'1',tuesday:'1',wednesday:'1',thursday:'1',friday:'1',saturday:'1',sunday:'1'}]
+    });
+    const from={lat:36.075,lng:138.083},to={lat:36.080,lng:138.090};
+    const leg=PlannerCore.Transport.findBusLeg(index,from,to,9*60,'月');
+    return leg && leg.wait<=10 && leg.route==='Test';
+  });
+
+  test('GTFSバス待ち10分超は採用しない',()=>{
+    const index=PlannerCore.Transport.createGtfsIndex({
+      stops:[
+        {stop_id:'A',stop_name:'A',stop_lat:'36.075',stop_lon:'138.083'},
+        {stop_id:'B',stop_name:'B',stop_lat:'36.080',stop_lon:'138.090'}
+      ],
+      routes:[{route_id:'R1',route_short_name:'Test'}],
+      trips:[{trip_id:'T1',route_id:'R1',service_id:'S1'}],
+      stopTimes:[
+        {trip_id:'T1',stop_id:'A',stop_sequence:'1',departure_time:'09:20'},
+        {trip_id:'T1',stop_id:'B',stop_sequence:'2',arrival_time:'09:30',departure_time:'09:30'}
+      ],
+      calendar:[{service_id:'S1',monday:'1',tuesday:'1',wednesday:'1',thursday:'1',friday:'1',saturday:'1',sunday:'1'}]
+    });
+    const from={lat:36.075,lng:138.083},to={lat:36.080,lng:138.090};
+    return PlannerCore.Transport.findBusLeg(index,from,to,9*60,'月')===null;
+  });
+
+  test('PlaceData候補は行く価値3以上だけ',()=>{
+    const mockPD={
+      effective:(p,n)=>p[n]||'',
+      truthy:v=>String(v)==='○',
+      keyOf:p=>p.place_id,
+      lat:p=>+p.latitude,
+      lng:p=>+p.longitude,
+      recommendation:p=>+p['おすすめ度'],
+      autoLevel:p=>p['自動提案']||'normal'
+    };
+    const rows=[
+      {place_id:'1','名称':'低優先','種別':'飲食店',latitude:'36.075',longitude:'138.083','おすすめ度':'2','自動提案':'normal','昼食向き':'○'},
+      {place_id:'2','名称':'通常','種別':'飲食店',latitude:'36.076',longitude:'138.084','おすすめ度':'3','自動提案':'normal','昼食向き':'○'}
+    ];
+    const out=PlannerCore.PlacePolicy.candidatePool(rows,'lunch',{at:12*60,day:'月',placeData:mockPD});
+    return out.length===1 && out[0].id==='2';
+  });
+
   test('バス待ちは吸収しない',()=>{
     const input=[
       {type:'act',wishType:'park',from:10*60,to:10*60+30,flexible:true},
@@ -70,10 +132,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans
     return PlannerCore.GapOptimizer.absorbShortGaps(input).length===3;
   });
 
+  Promise.all(rows.map(async r=>{
+    if(r.ok && typeof r.ok.then==='function'){
+      try{r.ok=!!(await r.ok)}catch(e){r.ok=false;r.error=String(e&&e.stack||e)}
+    }
+    return r;
+  })).then(()=>{
   const ok=rows.filter(x=>x.ok).length;
   document.getElementById('out').innerHTML=
     '<p><b>'+ok+' / '+rows.length+' passed</b></p>'+
     rows.map(x=>'<div class="'+(x.ok?'ok':'ng')+'">'+(x.ok?'✓':'✗')+' '+x.name+(x.error?'<pre>'+x.error+'</pre>':'')+'</div>').join('');
+  });
 })();
 </script>
 </body>

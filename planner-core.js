@@ -154,22 +154,39 @@ function isAutoCandidate(place, options = {}) {
   return visitValue >= minVisitValue;
 }
 
+function routeMetrics(from, candidate, goal) {
+  const direct = distanceKm(from, goal);
+  const leg = distanceKm(from, candidate);
+  const after = distanceKm(candidate, goal);
+  const detour = Math.max(0, leg + after - direct);
+  const progress = direct - after;
+  const efficiency = direct > 0 ? direct / Math.max(direct, leg + after) : 1;
+  const backtrack = Math.max(0, after - direct);
+  return {direct, leg, after, detour, progress, efficiency, backtrack};
+}
+
 function scorePlace(place, from, goal, context = {}) {
   const visitValue = clamp(Number(place.visitValue ?? place['おすすめ度'] ?? 3) || 3, 1, 5);
   const z = {lat: Number(place.lat ?? place.latitude), lng: Number(place.lng ?? place.longitude)};
-  const direct = distanceKm(from, goal);
-  const leg = distanceKm(from, z);
-  const after = distanceKm(z, goal);
-  const detour = Math.max(0, leg + after - direct);
-  const progress = direct - after;
+  const m = routeMetrics(from, z, goal);
 
-  let score = visitValue * 18 + progress * 30 - detour * 75 - leg * 3;
+  // Value matters, but it must not justify a large reversal or detour.
+  let score =
+    visitValue * 20 +
+    m.progress * 34 -
+    m.detour * 88 -
+    m.leg * 3 +
+    m.efficiency * 12;
 
-  if (after > direct + 0.45) score -= 35;
+  // Explicitly penalize moving away from GOAL.
+  if (m.progress < 0) score -= Math.abs(m.progress) * 55;
+  if (m.backtrack > 0.20) score -= 30 + (m.backtrack - 0.20) * 70;
+  if (m.backtrack > 0.60) score -= 65;
+
   if (context.rainSuitable) score += 12;
   if (context.seniorSuitable) score += 12;
-  if (context.policy === 'recommended') score += visitValue * 9;
-  if (context.policy === 'near') score -= leg * 18;
+  if (context.policy === 'recommended') score += visitValue * 10;
+  if (context.policy === 'near') score -= m.leg * 18;
   if (context.autoLevel === 'promote') score += 12;
   if (context.autoLevel === 'conditional') score -= 8;
 
@@ -940,7 +957,7 @@ function urgency(window, now) {
 }
 
 const PlannerCore = Object.freeze({
-  version: 'core-0.4-shadow',
+  version: 'core-0.5-shadow',
   DEFAULT_CONFIG,
   TYPE,
   Time: Object.freeze({
@@ -952,7 +969,8 @@ const PlannerCore = Object.freeze({
   }),
   Geo: Object.freeze({
     distanceKm,
-    estimateSimpleMove
+    estimateSimpleMove,
+    routeMetrics
   }),
   PlacePolicy: Object.freeze({
     normalizePlace,

@@ -674,6 +674,88 @@ async function chooseWish(rem, windows, state, input) {
   return best;
 }
 
+
+async function chooseFiller(state, input, targetTime = null, maxStay = 35) {
+  const types = [TYPE.landmark, TYPE.park, TYPE.cafe, TYPE.rest];
+  let best = null;
+
+  for (const type of types) {
+    const pool = candidatePool(input.rawPlaces, type, {
+      at:state.now,
+      day:input.day,
+      allowConditional:input.allowConditional,
+      placeData:input.placeData
+    });
+
+    const ranked = pool
+      .filter(p => !state.used.has(p.id))
+      .map(p => ({
+        p,
+        score:scorePlace(p, state.current, input.goal, {
+          policy:input.policy,
+          rainSuitable:!!p.suitable?.rain,
+          seniorSuitable:!!p.suitable?.senior,
+          autoLevel:p.autoLevel
+        })
+      }))
+      .sort((a,b) => b.score - a.score)
+      .slice(0, 20);
+
+    for (const entry of ranked) {
+      const place = entry.p;
+      const destination = {name:place.name, lat:place.lat, lng:place.lng};
+      const movement = await previewMove(input.mode, state.current, destination, state.now, {
+        config:input.config,
+        gtfsIndex:input.gtfsIndex,
+        day:input.day
+      });
+      if (!movement) continue;
+
+      const rawStay = stayMinutes({type,duration:''}, place, input.placeData);
+      const duration = Math.min(maxStay, rawStay);
+      const finish = movement.finish + duration;
+
+      if (targetTime !== null && finish > targetTime - 5) continue;
+      if (finish > input.end - input.config.goalReserve) continue;
+
+      const goalMove = await previewMove(input.mode, destination, input.goal, finish, {
+        config:input.config,
+        gtfsIndex:input.gtfsIndex,
+        day:input.day
+      });
+      if (!goalMove || goalMove.finish > input.end) continue;
+
+      const score = entry.score - (movement.finish - state.now) * 1.0;
+      if (!best || score > best.score) {
+        best = {type, place, destination, movement, duration, finish, score};
+      }
+    }
+  }
+
+  return best;
+}
+
+function appendFiller(state, filler, label) {
+  state.items.push(...transportItems(state.current, filler.destination, state.now, filler.movement));
+  state.now = filler.movement.finish;
+  state.items.push({
+    type:'act',
+    from:state.now,
+    to:state.now + filler.duration,
+    title:filler.place.name,
+    meta:'✨ ' + label,
+    wishType:filler.type,
+    point:filler.place.raw,
+    placeId:filler.place.id,
+    flexible:true,
+    auto:true
+  });
+  state.now += filler.duration;
+  state.current = filler.destination;
+  state.used.add(filler.place.id);
+  state.autoAdded.push(filler.place.id);
+}
+
 /**
  * Shadow schedule builder.
  *
@@ -719,7 +801,8 @@ async function buildPlan(options) {
     used:new Set(),
     items:[{type:'place',from:start,to:start,title:options.start.name || 'START',meta:'START'}],
     completed:[],
-    skipped:[]
+    skipped:[],
+    autoAdded:[]
   };
   const rem = wishes.slice();
 
@@ -749,6 +832,15 @@ async function buildPlan(options) {
     }
 
     const {wish, evaluated} = choice;
+
+    if (evaluated.wait >= 20) {
+      const filler = await chooseFiller(state, input, evaluated.begin, 30);
+      if (filler) {
+        appendFiller(state, filler, '次の予定までのおすすめ追加');
+        continue;
+      }
+    }
+
     rem.splice(rem.indexOf(wish), 1);
 
     const destination = {
@@ -791,13 +883,25 @@ async function buildPlan(options) {
     state.completed.push(wish.id);
   }
 
-  const goalMove = await previewMove(input.mode, state.current, input.goal, state.now, {
+  let goalMove = await previewMove(input.mode, state.current, input.goal, state.now, {
     config,
     gtfsIndex:input.gtfsIndex,
     day:input.day
   });
 
-  if (goalMove) {
+  let fillGuard = 0;
+  while (goalMove && goalMove.finish <= end && end - goalMove.finish > 45 && fillGuard++ < 4) {
+    const filler = await chooseFiller(state, input, end, 35);
+    if (!filler) break;
+    appendFiller(state, filler, 'GOALまでの空き時間におすすめ追加');
+    goalMove = await previewMove(input.mode, state.current, input.goal, state.now, {
+      config,
+      gtfsIndex:input.gtfsIndex,
+      day:input.day
+    });
+  }
+
+  if (goalMove && goalMove.finish <= end) {
     state.items.push(...transportItems(state.current, input.goal, state.now, goalMove));
     state.now = goalMove.finish;
   } else {
@@ -822,6 +926,7 @@ async function buildPlan(options) {
     finish:state.now,
     completed:state.completed,
     skipped:state.skipped,
+    autoAdded:state.autoAdded,
     itinerary:optimized
   };
 }
@@ -835,7 +940,7 @@ function urgency(window, now) {
 }
 
 const PlannerCore = Object.freeze({
-  version: 'core-0.3-shadow',
+  version: 'core-0.4-shadow',
   DEFAULT_CONFIG,
   TYPE,
   Time: Object.freeze({
@@ -868,6 +973,7 @@ const PlannerCore = Object.freeze({
   }),
   Schedule: Object.freeze({
     stayMinutes,
+    chooseFiller,
     buildPlan
   }),
   GapOptimizer: Object.freeze({

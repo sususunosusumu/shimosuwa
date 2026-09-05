@@ -13,6 +13,152 @@ function applyLocal(){const e=loadEdits();P=BASE.map(p=>({...p,...(e[key(p)]||{}
 function owner(p){return PlaceData.ownerRecommendation(p)}
 
 const NEW_STORE='shimosuwa_place_new_v1';
+
+const GOOGLE_KEY_STORE='shimosuwa_google_maps_api_key_v1';
+let googleLoader=null;
+
+function parseGoogleMapsUrl(url){
+  const s=String(url||'').trim();
+  if(!s)return {query:'',lat:null,lng:null};
+  let lat=null,lng=null,query='';
+  let m=s.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+  if(m){lat=+m[1];lng=+m[2]}
+  try{
+    const u=new URL(s);
+    const q=u.searchParams.get('query')||u.searchParams.get('q')||'';
+    if(q)query=decodeURIComponent(q);
+    if(!query){
+      const pm=u.pathname.match(/\/place\/([^/]+)/);
+      if(pm)query=decodeURIComponent(pm[1].replace(/\+/g,' '));
+    }
+  }catch(e){}
+  return {query,lat,lng};
+}
+
+function classifyGooglePlace(types=[],primary=''){
+  const t=[primary,...types].filter(Boolean).join(' ').toLowerCase();
+  if(/restaurant|cafe|bakery|bar|food|meal_takeaway|meal_delivery/.test(t))return {type:'飲食店',category:primary||types[0]||'飲食'};
+  if(/train_station|transit_station|bus_station/.test(t))return {type:'交通',category:primary||types[0]||'交通'};
+  if(/park|tourist_attraction|museum|art_gallery|place_of_worship|shrine|temple|spa|natural_feature|point_of_interest/.test(t))return {type:'ランドマーク',category:primary||types[0]||'観光'};
+  if(/store|shopping_mall|supermarket|convenience_store/.test(t))return {type:'サービス',category:primary||types[0]||'店舗'};
+  return {type:'ランドマーク',category:primary||types[0]||'地点'};
+}
+
+function normalizeWeekdayText(periods){
+  if(!Array.isArray(periods)||!periods.length)return {hours:'',days:'',closed:''};
+  const dayNames=['日','月','火','水','木','金','土'];
+  const grouped={};
+  for(const p of periods){
+    const d=p.open?.day;
+    const oh=p.open?.hour,om=p.open?.minute,ch=p.close?.hour,cm=p.close?.minute;
+    if(d==null||oh==null||ch==null)continue;
+    const range=String(oh).padStart(2,'0')+':'+String(om||0).padStart(2,'0')+'-'+String(ch).padStart(2,'0')+':'+String(cm||0).padStart(2,'0');
+    (grouped[d]||(grouped[d]=[])).push(range);
+  }
+  const openDays=Object.keys(grouped).map(Number).sort((a,b)=>a-b);
+  const closed=[0,1,2,3,4,5,6].filter(d=>!openDays.includes(d));
+  const dayText=openDays.length===7?'毎日':openDays.map(d=>dayNames[d]).join('・');
+  const closedText=closed.length?closed.map(d=>dayNames[d]).join('・'):'';
+  const uniq=[...new Set(Object.values(grouped).flat())];
+  return {hours:uniq.join(' / '),days:dayText,closed:closedText};
+}
+
+async function ensureGoogleForNewPlace(){
+  if(window.google?.maps?.importLibrary)return;
+  if(googleLoader)return googleLoader;
+  const key=$('newGoogleApiKey')?.value.trim()||localStorage.getItem(GOOGLE_KEY_STORE)||'';
+  if(!key)throw new Error('Google Maps APIキーを入力してください。');
+  localStorage.setItem(GOOGLE_KEY_STORE,key);
+  googleLoader=new Promise((resolve,reject)=>{
+    const old=document.getElementById('new-google-maps-js');
+    if(old)old.remove();
+    const s=document.createElement('script');
+    s.id='new-google-maps-js';
+    s.async=true;s.defer=true;
+    s.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(key)+'&v=weekly&loading=async&libraries=places';
+    s.onload=resolve;
+    s.onerror=()=>{googleLoader=null;reject(new Error('Google Maps JavaScript APIを読み込めませんでした。APIキーとAPI設定を確認してください。'))};
+    document.head.appendChild(s);
+  });
+  return googleLoader;
+}
+
+window.importNewPlaceFromGoogle=async function(){
+  const state=$('newGoogleState');
+  const url=$('newGoogleMapsURL').value.trim();
+  if(!url){state.textContent='Google Maps URLを貼り付けてください。';return}
+  state.textContent='Google Mapsから地点情報を取得中…';
+  try{
+    await ensureGoogleForNewPlace();
+    const parsed=parseGoogleMapsUrl(url);
+    const {Place}=await google.maps.importLibrary('places');
+    const fields=['id','displayName','formattedAddress','location','googleMapsURI','websiteURI','types','primaryType','regularOpeningHours','rating','userRatingCount','nationalPhoneNumber'];
+
+    let results=[];
+    if(parsed.query){
+      const r=await Place.searchByText({
+        textQuery:parsed.query+' 下諏訪町 長野県',
+        fields,
+        language:'ja',
+        region:'jp',
+        maxResultCount:5
+      });
+      results=r.places||[];
+    }
+    if(!results.length&&parsed.lat!=null&&parsed.lng!=null){
+      const r=await Place.searchNearby({
+        locationRestriction:{center:{lat:parsed.lat,lng:parsed.lng},radius:80},
+        fields,
+        language:'ja',
+        region:'jp',
+        maxResultCount:10
+      });
+      results=r.places||[];
+    }
+    if(!results.length)throw new Error('地点を特定できませんでした。Google Mapsの地点ページURLを使ってください。');
+
+    const best=results.map(x=>{
+      const name=typeof x.displayName==='string'?x.displayName:(x.displayName?.text||'');
+      let score=0;
+      if(parsed.query&&normName(name)===normName(parsed.query))score+=100;
+      if(String(x.formattedAddress||'').includes('下諏訪町'))score+=40;
+      if(parsed.lat!=null&&parsed.lng!=null&&x.location){
+        const lat=typeof x.location.lat==='function'?x.location.lat():x.location.lat;
+        const lng=typeof x.location.lng==='function'?x.location.lng():x.location.lng;
+        const d=coordDistanceMeters({latitude:parsed.lat,longitude:parsed.lng},{latitude:lat,longitude:lng});
+        if(d!=null)score+=Math.max(0,60-d);
+      }
+      return {x,score};
+    }).sort((a,b)=>b.score-a.score)[0].x;
+
+    const name=typeof best.displayName==='string'?best.displayName:(best.displayName?.text||'');
+    const lat=typeof best.location?.lat==='function'?best.location.lat():best.location?.lat;
+    const lng=typeof best.location?.lng==='function'?best.location.lng():best.location?.lng;
+    const cls=classifyGooglePlace(best.types||[],best.primaryType||'');
+    const wh=normalizeWeekdayText(best.regularOpeningHours?.periods||[]);
+
+    $('new名称').value=name||$('new名称').value;
+    $('new種別').value=cls.type;
+    $('newカテゴリ').value=cls.category||$('newカテゴリ').value;
+    $('new住所').value=best.formattedAddress||$('new住所').value;
+    if(Number.isFinite(+lat))$('newLatitude').value=lat;
+    if(Number.isFinite(+lng))$('newLongitude').value=lng;
+    $('newOfficialURL').value=best.websiteURI||'';
+    $('new営業日').value=wh.days;
+    $('new営業時間').value=wh.hours;
+    $('new定休日').value=wh.closed;
+    $('newGoogle評価').value=best.rating??'';
+    $('new口コミ件数').value=best.userRatingCount??'';
+    $('new電話番号').value=best.nationalPhoneNumber||'';
+    if(best.googleMapsURI)$('newGoogleMapsURL').value=best.googleMapsURI;
+
+    state.innerHTML='<span class="badge good">取得完了</span> 名称・住所・座標・営業情報などを反映しました。内容を確認してから追加してください。';
+  }catch(e){
+    console.error(e);
+    state.textContent='取得できませんでした: '+e.message;
+  }
+};
+
 function loadNewPlaces(){try{return JSON.parse(localStorage.getItem(NEW_STORE)||'[]')}catch(e){return[]}}
 function saveNewPlaces(rows){localStorage.setItem(NEW_STORE,JSON.stringify(rows))}
 function nextPlaceId(type){
@@ -29,7 +175,7 @@ window.openNewPlace=function(){
 };
 window.closeNewPlace=function(){$('newPlacePanel').style.display='none'};
 window.clearNewPlaceForm=function(){
-  for(const id of ['new名称','newカテゴリ','new住所','newLatitude','newLongitude','newGoogleMapsURL','newMemo']){const e=$(id);if(e)e.value=''}
+  for(const id of ['new名称','newカテゴリ','new住所','newLatitude','newLongitude','newGoogleMapsURL','newOfficialURL','new営業日','new営業時間','new定休日','newGoogle評価','new口コミ件数','new電話番号','newMemo']){const e=$(id);if(e)e.value=''}
   if($('new種別'))$('new種別').value='ランドマーク';
   if($('newおすすめ度'))$('newおすすめ度').value='3';
   if($('newOwnerPush'))$('newOwnerPush').value='0';
@@ -109,6 +255,13 @@ window.createNewPlace=function(){
     'オーナー評価メモ':$('newMemo').value.trim(),
     '自動提案':$('newAuto').value,
     'GoogleマップURL_確定':$('newGoogleMapsURL').value.trim(),
+    '公式WebページURL':$('newOfficialURL').value.trim(),
+    '営業日':$('new営業日').value.trim(),
+    '営業時間':$('new営業時間').value.trim(),
+    '定休日':$('new定休日').value.trim(),
+    'Google評価':$('newGoogle評価').value.trim(),
+    '口コミ件数':$('new口コミ件数').value.trim(),
+    '電話番号':$('new電話番号').value.trim(),
     '管理更新日':new Date().toISOString().slice(0,10),
     _new_place:true
   };
@@ -384,7 +537,8 @@ window.saveBulkEditor=function(){
   $('bulkState').innerHTML='<span class="unsaved">一括変更をブラウザ保存済み・GitHub未反映</span>';
 };
 
-async function init(){
+async function init(){try{if($('newGoogleApiKey'))$('newGoogleApiKey').value=localStorage.getItem(GOOGLE_KEY_STORE)||''}catch(e){}
+
   const status=$('count');if(status)status.textContent='Placeデータ読込中…';
   const {places}=await PlaceData.loadAll();
   SOURCE_BASE=places;BASE=allBaseWithNew();refresh();

@@ -42,7 +42,7 @@ function defaultManagement(p){
   if(/コンビニ|スーパー|公衆トイレ|行政|医療|駐車場|レンタサイクル|生活サービス/.test(text)){level='conditional';score='2';}
   if(/神社|寺院|史跡|博物館|美術館|景勝|公園|温泉|足湯|観光|文化|自然/.test(text)){level='normal';score='4';}
   if(/鉄道駅|交通ハブ/.test(text)){level='conditional';score='3';}
-  return {'おすすめ度':score,'自動提案':level,'おすすめ時間帯':'','対象':'','除外条件':'','公開メモ':'','運営メモ':'','管理更新日':''};
+  return {'おすすめ度':score,'オーナー推し度':'0','オーナーおすすめ順':'','オーナー評価メモ':'','自動提案':level,'おすすめ時間帯':'','対象':'','除外条件':'','公開メモ':'','運営メモ':'','管理更新日':''};
 }
 function applyManagementDefaults(rows){return rows.map(p=>({...defaultManagement(p),...p}));}
 function localJSON(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null}}
@@ -99,11 +99,12 @@ async function loadAll(){
   const legacyStats=applyLegacyCoordinates(places);
   return {places,management:parseCSV(managementText),legacyStats,files:{base:BASE_FILES,attributes:ATTR_FILES,management:MANAGEMENT_FILE}};
 }
-function managementHeaders(){return ['place_id','名称','種別','カテゴリ','サブカテゴリ','住所','latitude','longitude','おすすめ度','自動提案','おすすめ用途','おすすめ時間帯','対象','除外条件','公開メモ','運営メモ','管理更新日','営業日_override','営業時間_override','定休日_override','朝食向き_override','おやつ向き_override','昼食向き_override','夕食向き_override','休憩向き_override','観光向き_override','買い物向き_override','雨の日向き_override','子ども向き_override','高齢者向き_override','一人向き_override','短時間立寄り向き_override','体験・できること','最短滞在時間_分_override','推奨滞在時間_分_override','最大滞在時間_分_override','屋内外','徒歩アクセス難易度','坂道','トイレ','多目的トイレ','座れる場所','車椅子対応','駐車場','最寄りバス停','情報源_web','確認ステータス'];}
+function managementHeaders(){return ['place_id','名称','種別','カテゴリ','サブカテゴリ','住所','latitude','longitude','おすすめ度','オーナー推し度','オーナーおすすめ順','オーナー評価メモ','自動提案','おすすめ用途','おすすめ時間帯','対象','除外条件','公開メモ','運営メモ','管理更新日','営業日_override','営業時間_override','定休日_override','朝食向き_override','おやつ向き_override','昼食向き_override','夕食向き_override','休憩向き_override','観光向き_override','買い物向き_override','雨の日向き_override','子ども向き_override','高齢者向き_override','一人向き_override','短時間立寄り向き_override','体験・できること','最短滞在時間_分_override','推奨滞在時間_分_override','最大滞在時間_分_override','屋内外','徒歩アクセス難易度','坂道','トイレ','多目的トイレ','座れる場所','車椅子対応','駐車場','最寄りバス停','情報源_web','確認ステータス'];}
 function effective(p,name){const o=p[name+'_override'];return o!==undefined&&o!==''?o:(p[name]??'');}
 function autoLevel(p){return String(p['自動提案']||'normal');}
 function recommendation(p){return Math.max(1,Math.min(5,num(p['おすすめ度'],3)));}
-window.PlaceData={parseCSV,toCSV,truthy,no,num,lat,lng,hasCoord,keyOf,mergeRows,loadAll,managementHeaders,effective,autoLevel,recommendation,defaultManagement,applyLegacyCoordinates};
+function ownerRecommendation(p){const push=Math.max(0,Math.min(5,num(p['オーナー推し度'],0)));const raw=String(p['オーナーおすすめ順']??'').trim();const n=raw===''?null:Number(raw);const rank=Number.isFinite(n)&&n>0?Math.round(n):null;return {push,rank,note:String(p['オーナー評価メモ']||'')};}
+window.PlaceData={parseCSV,toCSV,truthy,no,num,lat,lng,hasCoord,keyOf,mergeRows,loadAll,managementHeaders,effective,autoLevel,recommendation,ownerRecommendation,defaultManagement,applyLegacyCoordinates};
 })();
 
 (function(){

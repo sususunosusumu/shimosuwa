@@ -16,6 +16,7 @@ const NEW_STORE='shimosuwa_place_new_v1';
 
 const GOOGLE_KEY_STORE='shimosuwa_google_maps_api_key_v1';
 let googleLoader=null;
+let googleLoadedKey='';
 
 function parseGoogleMapsUrl(url){
   const s=String(url||'').trim();
@@ -64,11 +65,16 @@ function normalizeWeekdayText(periods){
 }
 
 async function ensureGoogleForNewPlace(){
-  if(window.google?.maps?.importLibrary)return;
-  if(googleLoader)return googleLoader;
   const key=$('newGoogleApiKey')?.value.trim()||localStorage.getItem(GOOGLE_KEY_STORE)||'';
   if(!key)throw new Error('Google Maps APIキーを入力してください。');
   localStorage.setItem(GOOGLE_KEY_STORE,key);
+  if(window.google?.maps?.importLibrary){
+    if(googleLoadedKey && googleLoadedKey!==key){
+      throw new Error('APIキーを変更しました。ページを再読み込みしてから、もう一度「Google Mapsから取得」を押してください。');
+    }
+    return;
+  }
+  if(googleLoader)return googleLoader;
   googleLoader=new Promise((resolve,reject)=>{
     const old=document.getElementById('new-google-maps-js');
     if(old)old.remove();
@@ -76,7 +82,7 @@ async function ensureGoogleForNewPlace(){
     s.id='new-google-maps-js';
     s.async=true;s.defer=true;
     s.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(key)+'&v=weekly&loading=async&libraries=places';
-    s.onload=resolve;
+    s.onload=()=>{googleLoadedKey=key;resolve()};
     s.onerror=()=>{googleLoader=null;reject(new Error('Google Maps JavaScript APIを読み込めませんでした。APIキーとAPI設定を確認してください。'))};
     document.head.appendChild(s);
   });
@@ -537,7 +543,7 @@ window.saveBulkEditor=function(){
   $('bulkState').innerHTML='<span class="unsaved">一括変更をブラウザ保存済み・GitHub未反映</span>';
 };
 
-async function init(){try{if($('newGoogleApiKey'))$('newGoogleApiKey').value=localStorage.getItem(GOOGLE_KEY_STORE)||''}catch(e){}
+async function init(){try{if($('newGoogleApiKey')){const saved=localStorage.getItem(GOOGLE_KEY_STORE)||'';$('newGoogleApiKey').value=saved;$('newGoogleApiKey').addEventListener('change',()=>{const v=$('newGoogleApiKey').value.trim();localStorage.setItem(GOOGLE_KEY_STORE,v);if(googleLoadedKey&&googleLoadedKey!==v){const st=$('newGoogleState');if(st)st.textContent='APIキーを変更しました。ページを再読み込みしてから取得してください。'}})}}catch(e){}
 
   const status=$('count');if(status)status.textContent='Placeデータ読込中…';
   const {places}=await PlaceData.loadAll();

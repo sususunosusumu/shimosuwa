@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Planner Core Regression Scenarios</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif;max-width:980px;margin:28px auto;padding:0 16px}
+.ok{color:#087f23}.ng{color:#b42318}.case{border:1px solid #dde3e7;border-radius:10px;padding:10px;margin:8px 0}pre{white-space:pre-wrap;background:#f6f7f8;padding:8px;border-radius:8px}
+</style>
+</head>
+<body>
+<h1>Planner Core Regression Scenarios</h1>
+<div id="out">running…</div>
+<script src="../planner-core.js"></script>
+<script>
+(async()=>{
+  const rows=[];
+  async function test(name,fn){
+    try{rows.push({name,ok:!!(await fn())})}
+    catch(e){rows.push({name,ok:false,error:String(e&&e.stack||e)})}
+  }
+  const P=(id,name,lat,lng,value,type='landmark',extra={})=>({
+    id,name,lat,lng,visitValue:value,autoLevel:'normal',
+    suitable:{landmark:type==='landmark',lunch:type==='lunch',snack:type==='snack',rest:type==='rest',rain:false,senior:false},
+    raw:{place_id:id,'名称':name,'おすすめ度':String(value),...extra}
+  });
+
+  await test('高価値Placeは、自然な進行方向なら近い★3より優先できる',()=>{
+    const start={lat:36.075,lng:138.080},goal={lat:36.075,lng:138.100};
+    const near=P('n','近い★3',36.075,138.084,3);
+    const high=P('h','前方★5',36.075,138.090,5);
+    const sn=PlannerCore.PlacePolicy.scorePlace(near,start,goal,{policy:'recommended'});
+    const sh=PlannerCore.PlacePolicy.scorePlace(high,start,goal,{policy:'recommended'});
+    return sh>sn;
+  });
+
+  await test('★5でもGOALと逆方向への大きな戻りは★4前方候補に負ける',()=>{
+    const start={lat:36.075,lng:138.090},goal={lat:36.075,lng:138.105};
+    const back=P('b','逆方向★5',36.075,138.080,5);
+    const forward=P('f','前方★4',36.075,138.097,4);
+    const sb=PlannerCore.PlacePolicy.scorePlace(back,start,goal,{policy:'recommended'});
+    const sf=PlannerCore.PlacePolicy.scorePlace(forward,start,goal,{policy:'recommended'});
+    return sf>sb;
+  });
+
+  await test('同程度の候補ならオーナー推し度5を優先する',()=>{
+    const start={lat:36.075,lng:138.080},goal={lat:36.075,lng:138.100};
+    const normal=P('n','通常★4',36.075,138.090,4);
+    const owner=P('o','オーナー推し★4',36.075,138.0905,4);
+    owner.ownerRecommendation={push:5,rank:1};
+    const sn=PlannerCore.PlacePolicy.scorePlace(normal,start,goal,{policy:'recommended'});
+    const so=PlannerCore.PlacePolicy.scorePlace(owner,start,goal,{policy:'recommended'});
+    return so>sn;
+  });
+
+  await test('オーナー推し度5でも大きな逆戻りは自然な前方候補に負ける',()=>{
+    const start={lat:36.075,lng:138.090},goal={lat:36.075,lng:138.105};
+    const owner=P('o','逆方向オーナー推し',36.075,138.070,5);
+    owner.ownerRecommendation={push:5,rank:1};
+    const forward=P('f','前方★4',36.075,138.098,4);
+    const so=PlannerCore.PlacePolicy.scorePlace(owner,start,goal,{policy:'recommended'});
+    const sf=PlannerCore.PlacePolicy.scorePlace(forward,start,goal,{policy:'recommended'});
+    return sf>so;
+  });
+
+  await test('行く価値2は近くても自動候補にならない',()=>{
+    return !PlannerCore.PlacePolicy.isAutoCandidate({visitValue:2,autoLevel:'normal'});
+  });
+
+  await test('行く価値2も直接指定なら利用できる',()=>{
+    return PlannerCore.PlacePolicy.isAutoCandidate({visitValue:2,autoLevel:'normal'},{explicit:true});
+  });
+
+  await test('昼食時間窓は11:30〜13:30',()=>{
+    const w=PlannerCore.Time.timeWindowFor({type:'lunch'},0,0,9*60,16*60);
+    return w.min===690 && w.max===810;
+  });
+
+  await test('おやつ2回は午前・午後に分かれる',()=>{
+    const a=PlannerCore.Time.timeWindowFor({type:'snack'},0,2,9*60,16*60);
+    const b=PlannerCore.Time.timeWindowFor({type:'snack'},1,2,9*60,16*60);
+    return a.target===615 && b.target===900;
+  });
+
+  await test('通常待ち13分は直前の柔軟Placeへ吸収',()=>{
+    const out=PlannerCore.GapOptimizer.absorbShortGaps([
+      {type:'act',wishType:'park',from:655,to:675,flexible:true},
+      {type:'travel',from:675,to:677,fixedTransport:false},
+      {type:'wait',from:677,to:690,fixedTransport:false},
+      {type:'act',wishType:'lunch',from:690,to:740}
+    ]);
+    return out.length===3 && out[0].to===688 && out[1].from===688 && out[1].to===690;
+  });
+
+  await test('バス待ち8分は固定なので吸収しない',()=>{
+    const out=PlannerCore.GapOptimizer.absorbShortGaps([
+      {type:'act',wishType:'park',from:600,to:630,flexible:true},
+      {type:'travel',from:630,to:635,fixedTransport:false},
+      {type:'wait',from:635,to:643,fixedTransport:true},
+      {type:'bus',from:643,to:655,fixedTransport:true}
+    ]);
+    return out.length===4;
+  });
+
+  const passed=rows.filter(x=>x.ok).length;
+  document.getElementById('out').innerHTML='<h2>'+passed+' / '+rows.length+' passed</h2>'+
+    rows.map(x=>'<div class="case '+(x.ok?'ok':'ng')+'">'+(x.ok?'✓ ':'✗ ')+x.name+(x.error?'<pre>'+x.error+'</pre>':'')+'</div>').join('');
+})();
+</script>
+</body>
+</html>

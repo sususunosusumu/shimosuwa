@@ -2,7 +2,7 @@
 'use strict';
 
 const $=id=>document.getElementById(id);
-let BASE=[],P=[],selected=null;
+let BASE=[],SOURCE_BASE=[],P=[],selected=null;
 const STORE='shimosuwa_place_management_edits_v1';
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -21,7 +21,7 @@ function nextPlaceId(type){
   let n=1;while(used.has(prefix+String(n).padStart(3,'0')))n++;
   return prefix+String(n).padStart(3,'0');
 }
-function allBaseWithNew(){return [...BASE,...loadNewPlaces()]}
+function allBaseWithNew(){return [...SOURCE_BASE,...loadNewPlaces()]}
 window.openNewPlace=function(){
   $('newPlacePanel').style.display='block';
   $('newPlaceState').textContent='';
@@ -312,7 +312,7 @@ window.saveBulkEditor=function(){
 async function init(){
   const status=$('count');if(status)status.textContent='Placeデータ読込中…';
   const {places}=await PlaceData.loadAll();
-  BASE=[...places,...loadNewPlaces()];refresh();
+  SOURCE_BASE=places;BASE=allBaseWithNew();refresh();
   if(status)status.textContent=P.length+'件読み込み済み';
   const top=document.querySelector('.top .sm');if(top)top.textContent='Place一覧・行く価値・オーナー推薦を管理します。SAFE版';
 }

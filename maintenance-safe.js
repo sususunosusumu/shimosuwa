@@ -132,11 +132,15 @@ function card(p,detail=true){
 function bindDetails(root=document){
   root.querySelectorAll('.safe-detail').forEach(b=>b.onclick=()=>selectPlace(b.dataset.key));
 }
+function isDeleted(p){return String(p['削除予定']||'').toLowerCase()==='yes'}
 function renderList(){
   const q=($('q')?.value||'').trim().toLowerCase(),f=$('filter')?.value||'all',sort=$('sort')?.value||'data';
   let rows=P.filter(p=>{
     const txt=[p['名称'],p['種別'],p['カテゴリ'],p['住所']].join(' ').toLowerCase();
+    if(isDeleted(p))return false;
     if(q&&!txt.includes(q))return false;
+    if(f!=='deleted'&&isDeleted(p))return false;
+    if(f==='deleted'&&!isDeleted(p))return false;
     if(f==='coords'&&PlaceData.hasCoord(p))return false;
     if(f==='conditional'&&!['conditional','hidden'].includes(PlaceData.autoLevel(p)))return false;
     if(f==='unverified'&&!/要|未|unknown/i.test([p['確認ステータス'],p['web確認ステータス'],p['座標ステータス']].join(' ')))return false;
@@ -154,7 +158,7 @@ function renderList(){
 }
 function renderQuick(){
   const el=$('quickStart');if(!el)return;
-  const rows=[...P].filter(p=>value(p)>=4||PlaceData.hasCoord(p)).sort((a,b)=>value(b)-value(a)||owner(b).push-owner(a).push||(owner(a).rank??99999)-(owner(b).rank??99999)).slice(0,24);
+  const rows=[...P].filter(p=>!isDeleted(p)&&(value(p)>=4||PlaceData.hasCoord(p))).sort((a,b)=>value(b)-value(a)||owner(b).push-owner(a).push||(owner(a).rank??99999)-(owner(b).rank??99999)).slice(0,24);
   el.innerHTML=rows.map(p=>card(p,true)).join('');
   bindDetails(el);
 }
@@ -166,7 +170,7 @@ function selectPlace(k){
   const fields=['名称','種別','カテゴリ','サブカテゴリ','住所','latitude','longitude','営業日','営業時間','定休日','おすすめ度','オーナー推し度','オーナーおすすめ順','オーナー評価メモ','自動提案','おすすめ時間帯','対象','除外条件','公開メモ','運営メモ','体験・できること','最短滞在時間_分','推奨滞在時間_分','最大滞在時間_分','屋内外','徒歩アクセス難易度','坂道','トイレ','多目的トイレ','座れる場所','車椅子対応','駐車場','最寄りバス停','情報源_web','確認ステータス'];
   for(const n of fields)setIf(n,['営業日','営業時間','定休日'].includes(n)?PlaceData.effective(p,n):p[n]);
   renderFlags(p);
-  $('saveState').textContent='';
+  $('saveState').innerHTML=isDeleted(p)?'<span class="unsaved">この地点は削除予定です</span>':'';
   window.scrollTo({top:0,behavior:'smooth'});
 }
 const flags=['朝食向き','おやつ向き','昼食向き','夕食向き','休憩向き','観光向き','買い物向き','雨の日向き','子ども向き','高齢者向き','一人向き','短時間立寄り向き'];
@@ -185,6 +189,23 @@ function gather(){
   return out;
 }
 function refresh(){applyLocal();renderList();renderQuick()}
+
+window.toggleDeleteCurrent=function(){
+  if(!selected)return;
+  const p=P.find(x=>key(x)===selected);if(!p)return;
+  const deleting=!isDeleted(p);
+  const msg=deleting
+    ? 'この地点を削除予定にしますか？\n\n完全削除ではなく、Planner候補と通常一覧から除外します。後で復元できます。'
+    : 'この地点を削除予定から戻しますか？';
+  if(!confirm(msg))return;
+  const edits=loadEdits();
+  edits[selected]={...(edits[selected]||{}),'削除予定':deleting?'yes':'','自動提案':deleting?'hidden':(edits[selected]?.['自動提案']||p['自動提案']||'normal'),'管理更新日':new Date().toISOString().slice(0,10)};
+  saveEdits(edits);
+  refresh();
+  const still=P.find(x=>key(x)===selected);
+  if(still)selectPlace(selected);
+};
+
 window.saveCurrent=function(){
   if(!selected)return;const edits=loadEdits();edits[selected]={...(edits[selected]||{}),...gather()};saveEdits(edits);refresh();selectPlace(selected);$('saveState').innerHTML='<span class="unsaved">ブラウザ保存済み・GitHub未反映</span>';
 };

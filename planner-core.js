@@ -165,6 +165,20 @@ function routeMetrics(from, candidate, goal) {
   return {direct, leg, after, detour, progress, efficiency, backtrack};
 }
 
+function ownerPriorityBonus(place) {
+  const owner = place.ownerRecommendation || {};
+  const push = clamp(Number(owner.push ?? place['オーナー推し度'] ?? 0) || 0, 0, 5);
+  const rawRank = Number(owner.rank ?? place['オーナーおすすめ順']);
+  const rank = Number.isFinite(rawRank) && rawRank > 0 ? rawRank : null;
+
+  // 0 means "not evaluated", so it is neutral.
+  let bonus = [0,-18,0,12,26,40][push] || 0;
+
+  // Rank is a tie-break / refinement, not a replacement for route feasibility.
+  if (rank !== null) bonus += Math.max(0, 16 - Math.min(rank, 20) * 0.8);
+  return bonus;
+}
+
 function scorePlace(place, from, goal, context = {}) {
   const visitValue = clamp(Number(place.visitValue ?? place['おすすめ度'] ?? 3) || 3, 1, 5);
   const z = {lat: Number(place.lat ?? place.latitude), lng: Number(place.lng ?? place.longitude)};
@@ -173,6 +187,7 @@ function scorePlace(place, from, goal, context = {}) {
   // Value matters, but it must not justify a large reversal or detour.
   let score =
     visitValue * 20 +
+    ownerPriorityBonus(place) +
     m.progress * 34 -
     m.detour * 88 -
     m.leg * 3 +
@@ -255,6 +270,13 @@ function normalizePlace(raw, placeData = window.PlaceData) {
     visitValue: typeof pd.recommendation === 'function'
       ? pd.recommendation(raw)
       : clamp(Number(raw['おすすめ度'] ?? 3) || 3, 1, 5),
+    ownerRecommendation: typeof pd.ownerRecommendation === 'function'
+      ? pd.ownerRecommendation(raw)
+      : {
+          push:clamp(Number(raw['オーナー推し度'] ?? 0) || 0, 0, 5),
+          rank:Number(raw['オーナーおすすめ順']) > 0 ? Number(raw['オーナーおすすめ順']) : null,
+          note:String(raw['オーナー評価メモ'] || '')
+        },
     autoLevel: typeof pd.autoLevel === 'function'
       ? pd.autoLevel(raw)
       : String(raw['自動提案'] || 'normal'),
@@ -957,7 +979,7 @@ function urgency(window, now) {
 }
 
 const PlannerCore = Object.freeze({
-  version: 'core-0.5-shadow',
+  version: 'core-0.6-shadow',
   DEFAULT_CONFIG,
   TYPE,
   Time: Object.freeze({
@@ -979,6 +1001,7 @@ const PlannerCore = Object.freeze({
     timeOK,
     candidatePool,
     isAutoCandidate,
+    ownerPriorityBonus,
     scorePlace
   }),
   Transport: Object.freeze({

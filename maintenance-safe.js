@@ -36,6 +36,60 @@ window.clearNewPlaceForm=function(){
   if($('newAuto'))$('newAuto').value='normal';
   if($('newPlaceState'))$('newPlaceState').textContent='';
 };
+
+function normName(v){
+  return String(v||'').normalize('NFKC').toLowerCase()
+    .replace(/[\s　・･,，.。\-ー_()（）\[\]「」『』]/g,'')
+    .replace(/株式会社|有限会社|合同会社|店$/g,'');
+}
+function coordDistanceMeters(a,b){
+  const lat1=+a.latitude,lng1=+a.longitude,lat2=+b.latitude,lng2=+b.longitude;
+  if(![lat1,lng1,lat2,lng2].every(Number.isFinite))return null;
+  const R=6371000,toRad=x=>x*Math.PI/180;
+  const dLat=toRad(lat2-lat1),dLng=toRad(lng2-lng1);
+  const q=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.sqrt(q));
+}
+function duplicateCandidates(candidate){
+  const cn=normName(candidate['名称']);
+  return P.map(p=>{
+    let score=0,reasons=[];
+    const pn=normName(p['名称']);
+    if(cn&&pn){
+      if(cn===pn){score+=100;reasons.push('名称一致')}
+      else if(cn.includes(pn)||pn.includes(cn)){score+=65;reasons.push('名称が近い')}
+    }
+    const ca=String(candidate['住所']||'').trim(),pa=String(p['住所']||'').trim();
+    if(ca&&pa&&ca===pa){score+=80;reasons.push('住所一致')}
+    const cu=String(candidate['GoogleマップURL_確定']||'').trim(),pu=String(p['GoogleマップURL_確定']||'').trim();
+    if(cu&&pu&&cu===pu){score+=120;reasons.push('Google Maps URL一致')}
+    const d=coordDistanceMeters(candidate,p);
+    if(d!==null&&d<=20){score+=90;reasons.push('座標が約'+Math.round(d)+'m')}
+    return {p,score,reasons};
+  }).filter(x=>x.score>=65).sort((a,b)=>b.score-a.score);
+}
+function showDuplicateWarning(candidate,dups){
+  let box=$('newDuplicateWarning');
+  if(!box){
+    box=document.createElement('div');
+    box.id='newDuplicateWarning';
+    box.style.cssText='margin-top:10px;padding:10px;border:1px solid #e2b65c;border-radius:10px;background:#fff8e8';
+    $('newPlaceState').insertAdjacentElement('beforebegin',box);
+  }
+  box.innerHTML='<b>既存Placeと重複している可能性があります</b>'+
+    dups.slice(0,5).map(x=>'<div style="margin-top:7px"><b>'+esc(x.p['名称'])+'</b><div class="sm">'+esc(x.reasons.join(' / '))+'</div><button type="button" class="alt dup-open" data-k="'+esc(key(x.p))+'">既存Placeを開く</button></div>').join('')+
+    '<div class="row" style="margin-top:9px"><button type="button" id="dupForceAdd">それでも新規追加する</button><button type="button" class="alt" id="dupCancel">追加をやめる</button></div>';
+  box.querySelectorAll('.dup-open').forEach(b=>b.onclick=()=>{selectPlace(b.dataset.k);closeNewPlace()});
+  $('dupCancel').onclick=()=>box.remove();
+  $('dupForceAdd').onclick=()=>{box.remove();commitNewPlace(candidate)};
+}
+function commitNewPlace(row){
+  const rows=loadNewPlaces();rows.push(row);saveNewPlaces(rows);
+  BASE=allBaseWithNew();refresh();
+  $('newPlaceState').innerHTML='<span class="unsaved">追加しました：'+esc(row.place_id)+' '+esc(row['名称'])+' / ブラウザ保存済み・GitHub未反映</span>';
+  selected=key(row);setTimeout(()=>selectPlace(selected),0);
+}
+
 window.createNewPlace=function(){
   const name=$('new名称').value.trim(),type=$('new種別').value;
   if(!name){$('newPlaceState').textContent='名称を入力してください。';return}
@@ -58,10 +112,9 @@ window.createNewPlace=function(){
     '管理更新日':new Date().toISOString().slice(0,10),
     _new_place:true
   };
-  const rows=loadNewPlaces();rows.push(row);saveNewPlaces(rows);
-  BASE=allBaseWithNew();refresh();
-  $('newPlaceState').innerHTML='<span class="unsaved">追加しました：'+esc(row.place_id)+' '+esc(name)+' / ブラウザ保存済み・GitHub未反映</span>';
-  selected=key(row);setTimeout(()=>selectPlace(selected),0);
+  const dups=duplicateCandidates(row);
+  if(dups.length){showDuplicateWarning(row,dups);return}
+  commitNewPlace(row);
 };
 
 function value(p){return PlaceData.recommendation(p)}

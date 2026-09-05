@@ -17,6 +17,24 @@ function rankingCandidate(p,filter,q){
   if(filter==='rated'){const o=PlaceData.ownerRecommendation(p);if(!o.push&&!o.rank)return false;}
   return true;
 }
+function rankingQualitySummary(){
+  const rated=P.map(p=>({p,o:PlaceData.ownerRecommendation(p)})).filter(x=>x.o.push>0||x.o.rank);
+  const ranks=new Map();
+  for(const x of rated){if(x.o.rank){if(!ranks.has(x.o.rank))ranks.set(x.o.rank,[]);ranks.get(x.o.rank).push(x.p)}}
+  const dup=[...ranks.entries()].filter(([,arr])=>arr.length>1);
+  const top=rated.filter(x=>x.o.rank&&x.o.rank<=10).sort((a,b)=>a.o.rank-b.o.rank);
+  const topTypes={};for(const x of top){const k=x.p['種別']||'未分類';topTypes[k]=(topTypes[k]||0)+1}
+  const tourism=P.filter(isTourism),restaurants=P.filter(p=>p['種別']==='飲食店');
+  const unratedTourism=tourism.filter(p=>{const o=PlaceData.ownerRecommendation(p);return !o.push&&!o.rank}).length;
+  const unratedRestaurants=restaurants.filter(p=>{const o=PlaceData.ownerRecommendation(p);return !o.push&&!o.rank}).length;
+  const rows=[];
+  rows.push('<div class="sm"><b>ランキング品質チェック</b></div>');
+  rows.push('<div class="badges"><span class="badge good">評価済み '+rated.length+'件</span><span class="badge">TOP10設定 '+top.length+'件</span><span class="badge '+(dup.length?'warn':'good')+'">順位重複 '+dup.length+'件</span></div>');
+  if(dup.length)rows.push('<div class="warn" style="margin-top:6px">重複順位: '+dup.map(([r,arr])=>r+'位 '+arr.map(x=>esc(x['名称'])).join(' / ')).join('、')+'</div>');
+  rows.push('<div class="sm" style="margin-top:6px">未評価: 観光 '+unratedTourism+'件 / 飲食 '+unratedRestaurants+'件</div>');
+  if(top.length)rows.push('<div class="sm" style="margin-top:6px">TOP10構成: '+Object.entries(topTypes).map(([k,v])=>esc(k)+' '+v+'件').join(' / ')+'</div>');
+  return rows.join('');
+}
 function rankingRowsData(){
   const filter=$('rankFilter')?.value||'all',q=($('rankQ')?.value||'').trim().toLowerCase(),sort=$('rankSort')?.value||'rank';
   let rows=P.filter(p=>rankingCandidate(p,filter,q));
@@ -40,7 +58,7 @@ function renderRankingManager(){
   document.querySelectorAll('#rankingRows .rank-detail').forEach(b=>b.onclick=()=>{selectPlace(b.dataset.placeKey);closeRankingManager()});
   document.querySelectorAll('#rankingRows .rank-up').forEach(b=>b.onclick=()=>moveOwnerRank(b.dataset.placeKey,-1));
   document.querySelectorAll('#rankingRows .rank-down').forEach(b=>b.onclick=()=>moveOwnerRank(b.dataset.placeKey,1));
-  $('rankingState').textContent=rows.length+'件表示';
+  $('rankingState').textContent=rows.length+'件表示';if($('rankingQuality'))$('rankingQuality').innerHTML=rankingQualitySummary();
 }
 function moveOwnerRank(placeKey,delta){
   const trs=[...document.querySelectorAll('#rankingRows tr[data-rank-key]')];
@@ -59,7 +77,7 @@ function closeRankingManager(){$('rankingManager').style.display='none'}
 function saveRankingManager(){
   const edits=loadEdits();
   document.querySelectorAll('#rankingRows tr[data-rank-key]').forEach(tr=>{const k=tr.dataset.rankKey,rank=tr.querySelector('.rank-rank').value.trim(),push=tr.querySelector('.rank-push').value,note=tr.querySelector('.rank-note').value.trim();edits[k]={...(edits[k]||{}),'オーナーおすすめ順':rank,'オーナー推し度':push,'オーナー評価メモ':note,'管理更新日':new Date().toISOString().slice(0,10)}});
-  saveEdits(edits);applyLocal();renderList();renderRankingManager();$('rankingState').innerHTML='<span class="unsaved">ブラウザ保存済み・GitHub未反映</span>';if(selected)selectPlace(selected);
+  saveEdits(edits);applyLocal();renderList();renderRankingManager();$('rankingState').innerHTML='<span class="unsaved">ブラウザ保存済み・GitHub未反映</span>';if($('rankingQuality'))$('rankingQuality').innerHTML=rankingQualitySummary();if(selected)selectPlace(selected);
 }
 function normalizeOwnerRanks(){
   const rows=rankingRowsData().filter(p=>{const o=PlaceData.ownerRecommendation(p);return o.push>0||o.rank});

@@ -9,9 +9,52 @@ function renderFlags(p){$('flags').innerHTML=flags.map(n=>{const v=effective(p,n
 function gather(){const p=P.find(x=>key(x)===selected);if(!p)return null;const out={};for(const n of editable){const e=$(n);if(e)out[n]=e.value.trim()}for(const n of flags)out[n+'_override']=$('flag_'+n).value;out['営業日_override']=$('営業日').value.trim();out['営業時間_override']=$('営業時間').value.trim();out['定休日_override']=$('定休日').value.trim();out['最短滞在時間_分_override']=$('最短滞在時間_分').value.trim();out['推奨滞在時間_分_override']=$('推奨滞在時間_分').value.trim();out['最大滞在時間_分_override']=$('最大滞在時間_分').value.trim();out['管理更新日']=new Date().toISOString().slice(0,10);return out}
 function saveCurrent(){if(!selected)return;const edits=loadEdits(),g=gather();edits[selected]={...(edits[selected]||{}),...g};saveEdits(edits);applyLocal();const keep=selected;selectPlace(keep);$('saveState').innerHTML='<span class="unsaved">ブラウザ保存済み・GitHub未反映</span>'}function resetCurrent(){if(!selected)return;const e=loadEdits();delete e[selected];saveEdits(e);applyLocal();selectPlace(selected)}function clearLocal(){if(!confirm('このブラウザに保存した全変更を破棄しますか？'))return;localStorage.removeItem(STORE);applyLocal();selected=null;$('editor').style.display='none';$('empty').style.display='block';renderList()}
 function managementRows(){const edits=loadEdits();return P.map(p=>{const k=key(p),e=edits[k]||{};const pick=n=>e[n]??p[n]??'';const r={place_id:p.place_id||'',名称:pick('名称'),種別:pick('種別'),カテゴリ:pick('カテゴリ'),サブカテゴリ:pick('サブカテゴリ'),住所:pick('住所'),latitude:pick('latitude'),longitude:pick('longitude'),公式WebページURL:pick('公式WebページURL'),GoogleマップURL_確定:pick('GoogleマップURL_確定'),Googleマップ検索URL:pick('Googleマップ検索URL'),google_place_id:pick('google_place_id'),Google確認住所:pick('Google確認住所'),おすすめ度:pick('おすすめ度')||'3',オーナー推し度:pick('オーナー推し度')||'0',オーナーおすすめ順:pick('オーナーおすすめ順'),オーナー評価メモ:pick('オーナー評価メモ'),自動提案:pick('自動提案')||'normal',おすすめ用途:pick('おすすめ用途'),おすすめ時間帯:pick('おすすめ時間帯'),対象:pick('対象'),除外条件:pick('除外条件'),公開メモ:pick('公開メモ'),運営メモ:pick('運営メモ'),管理更新日:pick('管理更新日'),['体験・できること']:pick('体験・できること'),屋内外:pick('屋内外'),徒歩アクセス難易度:pick('徒歩アクセス難易度'),坂道:pick('坂道'),トイレ:pick('トイレ'),多目的トイレ:pick('多目的トイレ'),座れる場所:pick('座れる場所'),車椅子対応:pick('車椅子対応'),駐車場:pick('駐車場'),最寄りバス停:pick('最寄りバス停'),情報源_web:pick('情報源_web'),確認ステータス:pick('確認ステータス')};for(const n of flags)r[n+'_override']=e[n+'_override']??p[n+'_override']??'';for(const n of ['営業日','営業時間','定休日','最短滞在時間_分','推奨滞在時間_分','最大滞在時間_分'])r[n+'_override']=e[n+'_override']??p[n+'_override']??'';return r})}
+function rankingCandidate(p,filter,q){
+  const txt=[p['名称'],p['種別'],p['カテゴリ'],p['サブカテゴリ']].join(' ').toLowerCase();
+  if(q&&!txt.includes(q))return false;
+  if(filter==='landmark'&&!isTourism(p))return false;
+  if(filter==='restaurant'&&p['種別']!=='飲食店')return false;
+  if(filter==='rated'){const o=PlaceData.ownerRecommendation(p);if(!o.push&&!o.rank)return false;}
+  return true;
+}
+function rankingRowsData(){
+  const filter=$('rankFilter')?.value||'all',q=($('rankQ')?.value||'').trim().toLowerCase(),sort=$('rankSort')?.value||'rank';
+  let rows=P.filter(p=>rankingCandidate(p,filter,q));
+  rows.sort((a,b)=>{const x=PlaceData.ownerRecommendation(a),y=PlaceData.ownerRecommendation(b);if(sort==='push')return y.push-x.push||(x.rank??99999)-(y.rank??99999)||PlaceData.recommendation(b)-PlaceData.recommendation(a);if(sort==='visit')return PlaceData.recommendation(b)-PlaceData.recommendation(a)||(x.rank??99999)-(y.rank??99999);return (x.rank??99999)-(y.rank??99999)||y.push-x.push||PlaceData.recommendation(b)-PlaceData.recommendation(a)});
+  return rows;
+}
+function renderRankingManager(){
+  const rows=rankingRowsData();
+  $('rankingRows').innerHTML=rows.map(p=>{
+    const k=key(p),o=PlaceData.ownerRecommendation(p);
+    const opts=[0,1,2,3,4,5].map(n=>'<option value="'+n+'" '+(o.push===n?'selected':'')+'>'+n+(n===0?' 未評価':n===5?' 最優先':n===4?' 強く推す':n===3?' おすすめ':n===2?' 弱め':' 推さない')+'</option>').join('');
+    return '<tr data-rank-key="'+esc(k)+'">'+
+      '<td style="padding:6px;border-bottom:1px solid #eee"><input class="rank-rank" value="'+(o.rank??'')+'" inputmode="numeric" style="width:72px"></td>'+
+      '<td style="padding:6px;border-bottom:1px solid #eee"><b>'+esc(p['名称'])+'</b><div class="sm">'+esc(p['種別']||'')+' / '+esc(p['カテゴリ']||'')+'</div></td>'+
+      '<td style="padding:6px;border-bottom:1px solid #eee">★'+PlaceData.recommendation(p)+'</td>'+
+      '<td style="padding:6px;border-bottom:1px solid #eee"><select class="rank-push" style="min-width:120px">'+opts+'</select></td>'+
+      '<td style="padding:6px;border-bottom:1px solid #eee"><input class="rank-note" value="'+esc(o.note||'')+'" placeholder="推す理由・注意点"></td>'+
+      '<td style="padding:6px;border-bottom:1px solid #eee"><button class="alt rank-detail" data-place-key="'+esc(k)+'">詳細</button></td>'+
+      '</tr>';
+  }).join('');
+  document.querySelectorAll('#rankingRows .rank-detail').forEach(b=>b.onclick=()=>{selectPlace(b.dataset.placeKey);closeRankingManager()});
+  $('rankingState').textContent=rows.length+'件表示';
+}
+function openRankingManager(){$('rankingManager').style.display='block';renderRankingManager()}
+function closeRankingManager(){$('rankingManager').style.display='none'}
+function saveRankingManager(){
+  const edits=loadEdits();
+  document.querySelectorAll('#rankingRows tr[data-rank-key]').forEach(tr=>{const k=tr.dataset.rankKey,rank=tr.querySelector('.rank-rank').value.trim(),push=tr.querySelector('.rank-push').value,note=tr.querySelector('.rank-note').value.trim();edits[k]={...(edits[k]||{}),'オーナーおすすめ順':rank,'オーナー推し度':push,'オーナー評価メモ':note,'管理更新日':new Date().toISOString().slice(0,10)}});
+  saveEdits(edits);applyLocal();renderList();renderRankingManager();$('rankingState').innerHTML='<span class="unsaved">ブラウザ保存済み・GitHub未反映</span>';if(selected)selectPlace(selected);
+}
+function normalizeOwnerRanks(){
+  const rows=rankingRowsData().filter(p=>{const o=PlaceData.ownerRecommendation(p);return o.push>0||o.rank});
+  rows.forEach((p,i)=>{const tr=[...document.querySelectorAll('#rankingRows tr[data-rank-key]')].find(x=>x.dataset.rankKey===key(p));if(tr)tr.querySelector('.rank-rank').value=String(i+1)});
+  $('rankingState').textContent=rows.length+'件を1〜'+rows.length+'の連番にしました。保存すると反映されます。';
+}
 function exportManagement(){if(selected)saveCurrent();const csv=PlaceData.toCSV(managementRows(),PlaceData.managementHeaders()),blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='place_management_github.csv';a.click();URL.revokeObjectURL(a.href)}
 function purposeMatch(p,t){const c=[p['種別'],p['カテゴリ'],p['サブカテゴリ'],p['料理ジャンル'],p['提供メニュータグ']].join(' '),yn=n=>PlaceData.truthy(effective(p,n));if(t==='landmark')return yn('観光向き')||(/神社|寺院|史跡|博物館|美術館|景勝|公園|温泉|自然|文化/.test(c)&&!/コンビニ|行政|医療|生活サービス/.test(c));if(t==='lunch')return yn('昼食向き')||p['種別']==='飲食店';if(t==='snack')return yn('おやつ向き')||/カフェ|喫茶|パン|ベーカリー|菓子|ケーキ/.test(c);if(t==='onsen')return /温泉|足湯/.test(c);if(t==='cafe')return /カフェ|喫茶/.test(c);if(t==='park')return /公園|自然|散歩|湖畔/.test(c);if(t==='rest')return yn('休憩向き')||/休憩|公園|カフェ|温泉/.test(c);return false}
 function dayOK(p,w){const closed=effective(p,'定休日'),days=effective(p,'営業日');if(String(closed).includes(w))return false;if(!days||days==='毎日')return true;if(days==='平日')return !['土','日'].includes(w);return String(days).includes(w)}function timeOK(p,w,time){if(!dayOK(p,w))return false;const [hh,mm]=time.split(':').map(Number),t=hh*60+mm,s=String(effective(p,'営業時間')||'');if(!s||s.includes('24時間'))return true;const ranges=[...s.matchAll(/(\d{1,2}):(\d{2})\s*(?:-|〜|～)\s*(\d{1,2}):(\d{2})/g)];if(!ranges.length)return true;return ranges.some(x=>{let a=+x[1]*60+ +x[2],b=+x[3]*60+ +x[4];if(b===0)b=1440;return t>=a&&t<=b})}
 function testPlace(){const p={...P.find(x=>key(x)===selected),...gather()},purpose=$('testPurpose').value,w=$('testDay').value,time=$('testTime').value,reasons=[];let ok=true;if(PlaceData.autoLevel(p)==='hidden'){ok=false;reasons.push('自動提案が「原則出さない」')}else if(PlaceData.autoLevel(p)==='conditional')reasons.push('条件付きPlace');if(!purposeMatch(p,purpose)){ok=false;reasons.push('用途属性が一致しない')}if(!PlaceData.hasCoord(p)){ok=false;reasons.push('座標が未設定')}if(!dayOK(p,w)){ok=false;reasons.push(w+'曜日は営業対象外')}else if(!timeOK(p,w,time)){ok=false;reasons.push(time+'は営業時間外')}reasons.push('行く価値 '+PlaceData.recommendation(p)+'/5');const owner=PlaceData.ownerRecommendation?PlaceData.ownerRecommendation(p):{push:0,rank:null};reasons.push('オーナー推し度 '+owner.push+'/5'+(owner.rank?' / おすすめ順 '+owner.rank:''));const r=$('testResult');r.className='result '+(ok?'ok':'ng');r.textContent=(ok?'候補にできます：':'候補から除外：')+reasons.join(' / ')}
-$('q').oninput=renderList;$('filter').onchange=renderList;if($('sort'))$('sort').onchange=renderList;async function init(){const {places}=await PlaceData.loadAll();BASE=places;applyLocal();renderList();document.querySelectorAll('button').forEach(b=>{if(b.textContent.trim()==='管理CSVを書き出す')b.textContent='GitHub反映用CSVを書き出す'})}init();
+$('q').oninput=renderList;$('filter').onchange=renderList;if($('sort'))$('sort').onchange=renderList;if($('rankFilter'))$('rankFilter').onchange=renderRankingManager;if($('rankSort'))$('rankSort').onchange=renderRankingManager;if($('rankQ'))$('rankQ').oninput=renderRankingManager;async function init(){const {places}=await PlaceData.loadAll();BASE=places;applyLocal();renderList();document.querySelectorAll('button').forEach(b=>{if(b.textContent.trim()==='管理CSVを書き出す')b.textContent='GitHub反映用CSVを書き出す'})}init();
 for(const [src,id] of [['maintenance-google.js?v=20260829-3','mg-tools'],['maintenance-coordinate-paste.js?v=20260829-2','coord-tools'],['maintenance-url-tools.js?v=20260829-2','url-tools']]){if(!document.getElementById(id)){const s=document.createElement('script');s.id=id;s.src=src;document.body.appendChild(s)}}

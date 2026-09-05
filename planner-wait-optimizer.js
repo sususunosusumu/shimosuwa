@@ -1,5 +1,6 @@
 (() => {
 'use strict';
+if(new URLSearchParams(location.search).get('planner')==='core')return;
 const MAX_ABSORB=30;
 let busy=false;
 function toMin(s){const m=String(s||'').match(/(\d{1,2}):(\d{2})/);return m?+m[1]*60+ +m[2]:null}

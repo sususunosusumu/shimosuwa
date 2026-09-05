@@ -23,10 +23,31 @@
       <div><label>カテゴリ</label><input id="newカテゴリ" placeholder="公園 / 神社 / カフェ など"></div>
     </div>
     <div style="margin-top:8px"><label>住所</label><input id="new住所" placeholder="長野県諏訪郡下諏訪町..."></div>
+    <div style="margin-top:8px;padding:12px;border:1px solid #dfe7e3;border-radius:12px;background:#f8fbf9">
+      <label>Google Maps URL *</label>
+      <div class="row">
+        <input id="newGoogleMapsURL" style="flex:1" placeholder="Google Mapsの地点URLを貼り付け">
+        <button type="button" onclick="importNewPlaceFromGoogle()">Google Mapsから取得</button>
+      </div>
+      <div class="g2" style="margin-top:8px">
+        <div><label>Google Maps APIキー</label><input id="newGoogleApiKey" type="password" placeholder="ブラウザ内だけに保存"></div>
+        <div><label>&nbsp;</label><div id="newGoogleState" class="sm">URLを貼ると、地点名・住所・座標・営業時間などを取得します。</div></div>
+      </div>
+    </div>
     <div class="g3" style="margin-top:8px">
       <div><label>latitude</label><input id="newLatitude" placeholder="36.075..."></div>
       <div><label>longitude</label><input id="newLongitude" placeholder="138.08..."></div>
-      <div><label>Google Maps URL</label><input id="newGoogleMapsURL" placeholder="https://www.google.com/maps/..."></div>
+      <div><label>公式WebページURL</label><input id="newOfficialURL" placeholder="https://..."></div>
+    </div>
+    <div class="g3" style="margin-top:8px">
+      <div><label>営業日</label><input id="new営業日" placeholder="毎日 / 月・火・水..."></div>
+      <div><label>営業時間</label><input id="new営業時間" placeholder="09:00-17:00"></div>
+      <div><label>定休日</label><input id="new定休日" placeholder="月 / 火・水 など"></div>
+    </div>
+    <div class="g3" style="margin-top:8px">
+      <div><label>Google評価</label><input id="newGoogle評価" readonly></div>
+      <div><label>口コミ件数</label><input id="new口コミ件数" readonly></div>
+      <div><label>電話番号</label><input id="new電話番号"></div>
     </div>
     <div class="g3" style="margin-top:8px">
       <div><label>行く価値</label><select id="newおすすめ度"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select></div>
@@ -96,4 +117,4 @@
 <div style="overflow:auto;margin-top:10px"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left;padding:7px;border-bottom:1px solid #ddd">順位</th><th style="text-align:left;padding:7px;border-bottom:1px solid #ddd">Place</th><th style="text-align:left;padding:7px;border-bottom:1px solid #ddd">行く価値</th><th style="text-align:left;padding:7px;border-bottom:1px solid #ddd">推し度</th><th style="text-align:left;padding:7px;border-bottom:1px solid #ddd">メモ</th><th style="text-align:left;padding:7px;border-bottom:1px solid #ddd"></th></tr></thead><tbody id="rankingRows"></tbody></table></div>
 <div class="row" style="margin-top:12px"><button onclick="saveRankingManager()">ランキング変更をブラウザ保存</button><button class="alt" onclick="normalizeOwnerRanks()">順位を1から連番に整える</button><button onclick="exportManagement()">GitHub反映用CSVを書き出す</button></div>
 <div id="rankingState" class="sm" style="margin-top:7px"></div><div id="rankingQuality" style="margin-top:10px"></div>
-</div></div><script src="place-data.js?v=20260905-safe-2"></script><script src="maintenance-safe.js?v=20260905-safe-7"></script></body></html>
+</div></div><script src="place-data.js?v=20260905-safe-2"></script><script src="maintenance-safe.js?v=20260905-safe-8"></script></body></html>

@@ -11,6 +11,59 @@ function loadEdits(){try{return JSON.parse(localStorage.getItem(STORE)||'{}')}ca
 function saveEdits(o){localStorage.setItem(STORE,JSON.stringify(o))}
 function applyLocal(){const e=loadEdits();P=BASE.map(p=>({...p,...(e[key(p)]||{})}))}
 function owner(p){return PlaceData.ownerRecommendation(p)}
+
+const NEW_STORE='shimosuwa_place_new_v1';
+function loadNewPlaces(){try{return JSON.parse(localStorage.getItem(NEW_STORE)||'[]')}catch(e){return[]}}
+function saveNewPlaces(rows){localStorage.setItem(NEW_STORE,JSON.stringify(rows))}
+function nextPlaceId(type){
+  const prefix=type==='飲食店'?'R':type==='交通'?'T':type==='ランドマーク'?'L':'N';
+  const used=new Set([...BASE,...loadNewPlaces()].map(p=>String(p.place_id||'')));
+  let n=1;while(used.has(prefix+String(n).padStart(3,'0')))n++;
+  return prefix+String(n).padStart(3,'0');
+}
+function allBaseWithNew(){return [...BASE,...loadNewPlaces()]}
+window.openNewPlace=function(){
+  $('newPlacePanel').style.display='block';
+  $('newPlaceState').textContent='';
+  setTimeout(()=>$('newPlacePanel')?.scrollIntoView({behavior:'smooth',block:'start'}),30);
+};
+window.closeNewPlace=function(){$('newPlacePanel').style.display='none'};
+window.clearNewPlaceForm=function(){
+  for(const id of ['new名称','newカテゴリ','new住所','newLatitude','newLongitude','newGoogleMapsURL','newMemo']){const e=$(id);if(e)e.value=''}
+  if($('new種別'))$('new種別').value='ランドマーク';
+  if($('newおすすめ度'))$('newおすすめ度').value='3';
+  if($('newOwnerPush'))$('newOwnerPush').value='0';
+  if($('newAuto'))$('newAuto').value='normal';
+  if($('newPlaceState'))$('newPlaceState').textContent='';
+};
+window.createNewPlace=function(){
+  const name=$('new名称').value.trim(),type=$('new種別').value;
+  if(!name){$('newPlaceState').textContent='名称を入力してください。';return}
+  const lat=$('newLatitude').value.trim(),lng=$('newLongitude').value.trim();
+  if((lat&&!Number.isFinite(+lat))||(lng&&!Number.isFinite(+lng))){$('newPlaceState').textContent='緯度・経度を確認してください。';return}
+  const row={
+    place_id:nextPlaceId(type),
+    '名称':name,
+    '種別':type,
+    'カテゴリ':$('newカテゴリ').value.trim(),
+    '住所':$('new住所').value.trim(),
+    latitude:lat,
+    longitude:lng,
+    'おすすめ度':$('newおすすめ度').value,
+    'オーナー推し度':$('newOwnerPush').value,
+    'オーナーおすすめ順':'',
+    'オーナー評価メモ':$('newMemo').value.trim(),
+    '自動提案':$('newAuto').value,
+    'GoogleマップURL_確定':$('newGoogleMapsURL').value.trim(),
+    '管理更新日':new Date().toISOString().slice(0,10),
+    _new_place:true
+  };
+  const rows=loadNewPlaces();rows.push(row);saveNewPlaces(rows);
+  BASE=allBaseWithNew();refresh();
+  $('newPlaceState').innerHTML='<span class="unsaved">追加しました：'+esc(row.place_id)+' '+esc(name)+' / ブラウザ保存済み・GitHub未反映</span>';
+  selected=key(row);setTimeout(()=>selectPlace(selected),0);
+};
+
 function value(p){return PlaceData.recommendation(p)}
 function isTourism(p){return PlaceData.truthy(PlaceData.effective(p,'観光向き'))||/観光|神社|寺院|史跡|博物館|美術館|景勝|公園|温泉|自然|文化/.test([p['種別'],p['カテゴリ'],p['サブカテゴリ']].join(' '))}
 function card(p,detail=true){
@@ -259,7 +312,7 @@ window.saveBulkEditor=function(){
 async function init(){
   const status=$('count');if(status)status.textContent='Placeデータ読込中…';
   const {places}=await PlaceData.loadAll();
-  BASE=places;refresh();
+  BASE=[...places,...loadNewPlaces()];refresh();
   if(status)status.textContent=P.length+'件読み込み済み';
   const top=document.querySelector('.top .sm');if(top)top.textContent='Place一覧・行く価値・オーナー推薦を管理します。SAFE版';
 }

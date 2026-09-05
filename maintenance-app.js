@@ -34,11 +34,25 @@ function renderRankingManager(){
       '<td style="padding:6px;border-bottom:1px solid #eee">★'+PlaceData.recommendation(p)+'</td>'+
       '<td style="padding:6px;border-bottom:1px solid #eee"><select class="rank-push" style="min-width:120px">'+opts+'</select></td>'+
       '<td style="padding:6px;border-bottom:1px solid #eee"><input class="rank-note" value="'+esc(o.note||'')+'" placeholder="推す理由・注意点"></td>'+
-      '<td style="padding:6px;border-bottom:1px solid #eee"><button class="alt rank-detail" data-place-key="'+esc(k)+'">詳細</button></td>'+
+      '<td style="padding:6px;border-bottom:1px solid #eee"><div class="row"><button class="alt rank-up" data-place-key="'+esc(k)+'">↑</button><button class="alt rank-down" data-place-key="'+esc(k)+'">↓</button><button class="alt rank-detail" data-place-key="'+esc(k)+'">詳細</button></div></td>'+
       '</tr>';
   }).join('');
   document.querySelectorAll('#rankingRows .rank-detail').forEach(b=>b.onclick=()=>{selectPlace(b.dataset.placeKey);closeRankingManager()});
+  document.querySelectorAll('#rankingRows .rank-up').forEach(b=>b.onclick=()=>moveOwnerRank(b.dataset.placeKey,-1));
+  document.querySelectorAll('#rankingRows .rank-down').forEach(b=>b.onclick=()=>moveOwnerRank(b.dataset.placeKey,1));
   $('rankingState').textContent=rows.length+'件表示';
+}
+function moveOwnerRank(placeKey,delta){
+  const trs=[...document.querySelectorAll('#rankingRows tr[data-rank-key]')];
+  const i=trs.findIndex(tr=>tr.dataset.rankKey===placeKey);
+  const j=i+delta;
+  if(i<0||j<0||j>=trs.length)return;
+  const a=trs[i].querySelector('.rank-rank'),b=trs[j].querySelector('.rank-rank');
+  const av=a.value.trim(),bv=b.value.trim();
+  if(!av&&!bv){a.value=String(i+1);b.value=String(j+1)}
+  else{a.value=bv||String(j+1);b.value=av||String(i+1)}
+  trs[j].parentNode.insertBefore(trs[i],delta<0?trs[j]:trs[j].nextSibling);
+  $('rankingState').textContent='順位を入れ替えました。保存すると反映されます。';
 }
 function openRankingManager(){$('rankingManager').style.display='block';renderRankingManager()}
 function closeRankingManager(){$('rankingManager').style.display='none'}

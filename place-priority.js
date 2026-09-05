@@ -42,8 +42,19 @@ function enhanceMaintenance(){
   }
   const h=[...document.querySelectorAll('.section h3')].find(x=>x.textContent.includes('おすすめ・自動提案'));if(h)h.textContent='行く価値・自動提案';
   const top=document.querySelector('.top .sm');if(top)top.textContent='営業時間・用途属性・行く価値ポイント・自動提案ルールを管理します。変更はブラウザに保存し、GitHub反映用CSVとして書き出せます。';
-  function relabel(){document.querySelectorAll('.badge').forEach(b=>{b.textContent=b.textContent.replace(/^おすすめ\s*(\d)\/5$/,'行く価値 ★$1')});const r=document.getElementById('testResult');if(r)r.textContent=r.textContent.replace(/おすすめ度\s*(\d)\/5/g,'行く価値 ★$1')}
-  relabel();new MutationObserver(relabel).observe(document.body,{childList:true,subtree:true,characterData:true});
+  function relabel(){
+    document.querySelectorAll('.badge').forEach(b=>{
+      const next=b.textContent.replace(/^おすすめ\s*(\d)\/5$/,'行く価値 ★$1');
+      if(next!==b.textContent)b.textContent=next;
+    });
+    const r=document.getElementById('testResult');
+    if(r){
+      const next=r.textContent.replace(/おすすめ度\s*(\d)\/5/g,'行く価値 ★$1');
+      if(next!==r.textContent)r.textContent=next;
+    }
+  }
+  relabel();
+  new MutationObserver(relabel).observe(document.body,{childList:true,subtree:true});
 }
 function boot(){if(/maintenance\.html$/i.test(location.pathname))enhanceMaintenance();else enhancePlanner()}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();

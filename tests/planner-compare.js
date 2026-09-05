@@ -135,6 +135,21 @@ function pointByLegacyTitle(title) {
     : null;
 }
 
+function ownerStats(items,isCore){
+  const acts=activityRows(items);
+  const vals=[];
+  for(const x of acts){
+    let raw=null;
+    if(isCore&&x.point)raw=x.point;else raw=P.find(p=>String(p['名称']||'').trim()===String(x.title||'').trim());
+    if(!raw)continue;
+    const o=PlaceData.ownerRecommendation(raw);
+    vals.push(o);
+  }
+  const pushed=vals.filter(o=>o.push>=4).length;
+  const ranked=vals.filter(o=>o.rank&&o.rank<=10).length;
+  const avg=vals.length?vals.reduce((a,o)=>a+o.push,0)/vals.length:null;
+  return{count:vals.length,pushed,ranked,avg};
+}
 function routeQuality(items, isCore) {
   const points=[{...pt.s}];
   for(const x of activityRows(items)){
@@ -182,6 +197,7 @@ function findings(legacy, core, result) {
   const lAvg = avgVisitValue(legacy,false), cAvg = avgVisitValue(core,true);
   const seqScore = overlapScore(sequence(legacy), sequence(core));
   const lRoute = routeQuality(legacy,false), cRoute = routeQuality(core,true);
+  const lOwner=ownerStats(legacy,false),cOwner=ownerStats(core,true);
 
   const add = (level, text) => out.push({level,text});
 
@@ -218,6 +234,8 @@ function findings(legacy, core, result) {
       else if (cRoute.detourRatio > lRoute.detourRatio + 0.20) add('warn','新Coreの総迂回率が旧版より大きいです（旧 '+lRoute.detourRatio.toFixed(2)+' / Core '+cRoute.detourRatio.toFixed(2)+'）。');
     }
   }
+
+  if(cOwner.count&&lOwner.count){if(cOwner.ranked>lOwner.ranked)add('good','TOP10オーナー推薦Placeの採用数が増えています（旧 '+lOwner.ranked+'件 / Core '+cOwner.ranked+'件）。');else if(cOwner.ranked<lOwner.ranked)add('warn','TOP10オーナー推薦Placeの採用数が減っています（旧 '+lOwner.ranked+'件 / Core '+cOwner.ranked+'件）。');if(cOwner.avg!==null&&lOwner.avg!==null&&cOwner.avg>=lOwner.avg)add('good','平均オーナー推し度は維持または改善しています（旧 '+lOwner.avg.toFixed(2)+' / Core '+cOwner.avg.toFixed(2)+'）。');}
 
   if (result.skipped?.length) add('bad','新Coreに未消化があります：'+result.skipped.map(x=>x.id+':'+x.reason).join(', '));
   if (!out.length) add('warn','大きな差分指標はありません。旅程内容を目視確認してください。');
@@ -341,7 +359,7 @@ async function runComparison() {
 
     const legacyActs = activityRows(legacy).length;
     const coreActs = activityRows(core).length;
-    const lRoute=routeQuality(legacy,false),cRoute=routeQuality(core,true);
+    const lRoute=routeQuality(legacy,false),cRoute=routeQuality(core,true),lOwner=ownerStats(legacy,false),cOwner=ownerStats(core,true);
     $c('compareSummary').innerHTML =
       '<span class="pill">旧 Place '+legacyActs+'件</span>'+
       '<span class="pill">Core Place '+coreActs+'件</span>'+
@@ -349,6 +367,8 @@ async function runComparison() {
       '<span class="pill">Core 移動 '+travelMinutes(core)+'分</span>'+
       (lRoute?'<span class="pill">旧 逆方向 '+lRoute.away+'回</span>':'')+
       (cRoute?'<span class="pill">Core 逆方向 '+cRoute.away+'回</span>':'')+
+      '<span class="pill">旧 TOP10推し '+lOwner.ranked+'件</span>'+ 
+      '<span class="pill">Core TOP10推し '+cOwner.ranked+'件</span>'+ 
       '<span class="pill">Core '+coreResult.status+'</span>';
   } catch (e) {
     console.error(e);

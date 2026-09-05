@@ -123,6 +123,139 @@ window.exportManagement=function(){
 };
 window.testPlace=function(){const r=$('testResult');if(r)r.textContent='SAFE版では基本属性の編集を優先しています。推薦判定はPlanner側で確認してください。'};
 
+
+const BULK_GROUPS={
+  recommend:[
+    ['おすすめ度','行く価値','select','visit'],
+    ['オーナー推し度','オーナー推し','select','owner'],
+    ['オーナーおすすめ順','順位','input','number'],
+    ['自動提案','自動提案','select','auto'],
+    ['オーナー評価メモ','評価メモ','input','text']
+  ],
+  purpose:[
+    ['朝食向き','朝食','select','yn'],
+    ['おやつ向き','おやつ','select','yn'],
+    ['昼食向き','昼食','select','yn'],
+    ['夕食向き','夕食','select','yn'],
+    ['休憩向き','休憩','select','yn'],
+    ['観光向き','観光','select','yn'],
+    ['買い物向き','買い物','select','yn'],
+    ['雨の日向き','雨の日','select','yn'],
+    ['子ども向き','子ども','select','yn'],
+    ['高齢者向き','高齢者','select','yn'],
+    ['一人向き','一人','select','yn'],
+    ['短時間立寄り向き','短時間','select','yn']
+  ],
+  stay:[
+    ['体験・できること','体験・できること','input','text'],
+    ['最短滞在時間_分','最短滞在','input','number'],
+    ['推奨滞在時間_分','推奨滞在','input','number'],
+    ['最大滞在時間_分','最大滞在','input','number'],
+    ['おすすめ時間帯','おすすめ時間帯','input','text'],
+    ['屋内外','屋内外','input','text']
+  ],
+  access:[
+    ['徒歩アクセス難易度','徒歩難易度','input','text'],
+    ['坂道','坂道','input','text'],
+    ['トイレ','トイレ','input','text'],
+    ['多目的トイレ','多目的トイレ','input','text'],
+    ['座れる場所','座れる','input','text'],
+    ['車椅子対応','車椅子','input','text'],
+    ['駐車場','駐車場','input','text'],
+    ['最寄りバス停','最寄りバス停','input','text']
+  ],
+  hours:[
+    ['営業日','営業日','input','text'],
+    ['営業時間','営業時間','input','text'],
+    ['定休日','定休日','input','text'],
+    ['対象','対象','input','text'],
+    ['除外条件','除外条件','input','text']
+  ]
+};
+
+function bulkRows(){
+  const f=$('bulkFilter')?.value||'landmark';
+  const q=($('bulkQ')?.value||'').trim().toLowerCase();
+  return P.filter(p=>{
+    const txt=[p['名称'],p['種別'],p['カテゴリ'],p['サブカテゴリ']].join(' ').toLowerCase();
+    if(q&&!txt.includes(q))return false;
+    if(f==='landmark'&&!isTourism(p))return false;
+    if(f==='restaurant'&&p['種別']!=='飲食店')return false;
+    if(f==='ownerTodo'){const o=owner(p);if(value(p)<4||o.push||o.rank)return false}
+    return true;
+  }).sort((a,b)=>value(b)-value(a)||owner(b).push-owner(a).push||(owner(a).rank??99999)-(owner(b).rank??99999));
+}
+
+function bulkValue(p,name){
+  if(['朝食向き','おやつ向き','昼食向き','夕食向き','休憩向き','観光向き','買い物向き','雨の日向き','子ども向き','高齢者向き','一人向き','短時間立寄り向き','営業日','営業時間','定休日','最短滞在時間_分','推奨滞在時間_分','最大滞在時間_分'].includes(name)){
+    return PlaceData.effective(p,name);
+  }
+  return p[name]??'';
+}
+
+function bulkEditorCell(p,col){
+  const [name,label,kind,mode]=col;
+  const v=bulkValue(p,name);
+  const k=key(p);
+  const base='data-bulk-key="'+esc(k)+'" data-bulk-field="'+esc(name)+'"';
+  if(kind==='select'&&mode==='visit'){
+    return '<select '+base+'>'+[1,2,3,4,5].map(n=>'<option value="'+n+'" '+(+v===n?'selected':'')+'>'+n+'</option>').join('')+'</select>';
+  }
+  if(kind==='select'&&mode==='owner'){
+    return '<select '+base+'>'+[0,1,2,3,4,5].map(n=>'<option value="'+n+'" '+(+v===n?'selected':'')+'>'+n+'</option>').join('')+'</select>';
+  }
+  if(kind==='select'&&mode==='auto'){
+    return '<select '+base+'>'+[['promote','積極'],['normal','通常'],['conditional','条件付'],['hidden','出さない']].map(([x,t])=>'<option value="'+x+'" '+(String(v||'normal')===x?'selected':'')+'>'+t+'</option>').join('')+'</select>';
+  }
+  if(kind==='select'&&mode==='yn'){
+    const yes=PlaceData.truthy(v),no=PlaceData.no(v);
+    return '<select '+base+'><option value="" '+(!yes&&!no?'selected':'')+'>unknown</option><option value="yes" '+(yes?'selected':'')+'>yes</option><option value="no" '+(no?'selected':'')+'>no</option></select>';
+  }
+  const type=mode==='number'?'number':'text';
+  return '<input type="'+type+'" '+base+' value="'+esc(v)+'" style="min-width:'+(mode==='text'?'150px':'80px')+'">';
+}
+
+window.renderBulkEditor=function(){
+  const group=$('bulkGroup')?.value||'recommend';
+  const cols=BULK_GROUPS[group];
+  const rows=bulkRows();
+  const sticky='position:sticky;background:#f7f8f9;z-index:2;border-bottom:1px solid #dce2e5;padding:7px;text-align:left;white-space:nowrap';
+  $('bulkHead').innerHTML='<tr><th style="'+sticky+';left:0;z-index:4">Place</th><th style="'+sticky+';left:220px;z-index:4">種別</th>'+cols.map(c=>'<th style="'+sticky+'">'+esc(c[1])+'</th>').join('')+'</tr>';
+  $('bulkBody').innerHTML=rows.map(p=>{
+    return '<tr><td style="position:sticky;left:0;background:#fff;z-index:1;padding:7px;border-bottom:1px solid #eee;min-width:220px"><b>'+esc(p['名称'])+'</b></td>'+
+      '<td style="position:sticky;left:220px;background:#fff;z-index:1;padding:7px;border-bottom:1px solid #eee;min-width:120px">'+esc(p['種別']||'')+'</td>'+
+      cols.map(c=>'<td style="padding:6px;border-bottom:1px solid #eee">'+bulkEditorCell(p,c)+'</td>').join('')+
+      '</tr>';
+  }).join('');
+  $('bulkState').textContent=rows.length+'件表示';
+};
+
+window.openBulkEditor=function(){
+  $('bulkEditor').style.display='block';
+  renderBulkEditor();
+  setTimeout(()=>$('bulkEditor')?.scrollIntoView({behavior:'smooth',block:'start'}),30);
+};
+window.closeBulkEditor=function(){$('bulkEditor').style.display='none'};
+
+window.saveBulkEditor=function(){
+  const edits=loadEdits();
+  document.querySelectorAll('#bulkTable [data-bulk-key][data-bulk-field]').forEach(e=>{
+    const k=e.dataset.bulkKey,field=e.dataset.bulkField;
+    if(!edits[k])edits[k]={};
+    const value=e.value.trim();
+    if(['朝食向き','おやつ向き','昼食向き','夕食向き','休憩向き','観光向き','買い物向き','雨の日向き','子ども向き','高齢者向き','一人向き','短時間立寄り向き','営業日','営業時間','定休日','最短滞在時間_分','推奨滞在時間_分','最大滞在時間_分'].includes(field)){
+      edits[k][field+'_override']=value;
+    }else{
+      edits[k][field]=value;
+    }
+    edits[k]['管理更新日']=new Date().toISOString().slice(0,10);
+  });
+  saveEdits(edits);
+  refresh();
+  renderBulkEditor();
+  $('bulkState').innerHTML='<span class="unsaved">一括変更をブラウザ保存済み・GitHub未反映</span>';
+};
+
 async function init(){
   const status=$('count');if(status)status.textContent='Placeデータ読込中…';
   const {places}=await PlaceData.loadAll();
@@ -136,5 +269,8 @@ if($('sort'))$('sort').onchange=renderList;
 if($('rankFilter'))$('rankFilter').onchange=renderRanking;
 if($('rankSort'))$('rankSort').onchange=renderRanking;
 if($('rankQ'))$('rankQ').oninput=renderRanking;
+if($('bulkFilter'))$('bulkFilter').onchange=renderBulkEditor;
+if($('bulkGroup'))$('bulkGroup').onchange=renderBulkEditor;
+if($('bulkQ'))$('bulkQ').oninput=renderBulkEditor;
 init().catch(e=>{console.error(e);if($('count'))$('count').textContent='読込エラー: '+e.message;if($('list'))$('list').innerHTML='<div class="item"><b>読込エラー</b><div class="sm">'+esc(e.message)+'</div></div>';});
 })();

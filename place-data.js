@@ -107,11 +107,3 @@ function ownerRecommendation(p){const push=Math.max(0,Math.min(5,num(p['オー�
 window.PlaceData={parseCSV,toCSV,truthy,no,num,lat,lng,hasCoord,keyOf,mergeRows,loadAll,managementHeaders,effective,autoLevel,recommendation,ownerRecommendation,defaultManagement,applyLegacyCoordinates};
 })();
 
-(function(){
-  if(!/maintenance\.html$/i.test(location.pathname))return;
-  const files=['maintenance-google.js?v=20260829-3','maintenance-coordinate-paste.js?v=20260829-1'];
-  for(const src of files){
-    if(document.querySelector(`script[src^="${src.split('?')[0]}"]`))continue;
-    const s=document.createElement('script');s.src=src;s.defer=true;document.head.appendChild(s);
-  }
-})();

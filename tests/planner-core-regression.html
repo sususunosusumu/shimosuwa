@@ -43,6 +43,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans
     return sf>sb;
   });
 
+  await test('同程度の候補ならオーナー推し度5を優先する',()=>{
+    const start={lat:36.075,lng:138.080},goal={lat:36.075,lng:138.100};
+    const normal=P('n','通常★4',36.075,138.090,4);
+    const owner=P('o','オーナー推し★4',36.075,138.0905,4);
+    owner.ownerRecommendation={push:5,rank:1};
+    const sn=PlannerCore.PlacePolicy.scorePlace(normal,start,goal,{policy:'recommended'});
+    const so=PlannerCore.PlacePolicy.scorePlace(owner,start,goal,{policy:'recommended'});
+    return so>sn;
+  });
+
+  await test('オーナー推し度5でも大きな逆戻りは自然な前方候補に負ける',()=>{
+    const start={lat:36.075,lng:138.090},goal={lat:36.075,lng:138.105};
+    const owner=P('o','逆方向オーナー推し',36.075,138.070,5);
+    owner.ownerRecommendation={push:5,rank:1};
+    const forward=P('f','前方★4',36.075,138.098,4);
+    const so=PlannerCore.PlacePolicy.scorePlace(owner,start,goal,{policy:'recommended'});
+    const sf=PlannerCore.PlacePolicy.scorePlace(forward,start,goal,{policy:'recommended'});
+    return sf>so;
+  });
+
   await test('行く価値2は近くても自動候補にならない',()=>{
     return !PlannerCore.PlacePolicy.isAutoCandidate({visitValue:2,autoLevel:'normal'});
   });

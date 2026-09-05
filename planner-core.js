@@ -837,7 +837,7 @@ async function buildPlan(options) {
   const state = {
     now:start,
     current:{...options.start},
-    used:new Set(),
+    used:new Set(options.excludedPlaceIds || []),
     items:[{type:'place',from:start,to:start,title:options.start.name || 'START',meta:'START'}],
     completed:[],
     skipped:[],
@@ -958,7 +958,7 @@ async function buildPlan(options) {
   const optimized = absorbShortGaps(state.items, config);
 
   return {
-    version:'shadow-plan-0.1',
+    version:'shadow-plan-0.2',
     status:state.now <= end && !state.skipped.some(x => x.id === 'GOAL') ? 'ok' : 'review',
     start,
     end,
@@ -979,7 +979,7 @@ function urgency(window, now) {
 }
 
 const PlannerCore = Object.freeze({
-  version: 'core-0.6-shadow',
+  version: 'core-0.7-preview',
   DEFAULT_CONFIG,
   TYPE,
   Time: Object.freeze({

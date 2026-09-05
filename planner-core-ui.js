@@ -33,13 +33,30 @@ function renderMoveTitle(x){
   if(x.type==='free')return '自由時間';
   return x.title||x.type;
 }
+
+function modal(title,body){
+  let d=document.getElementById('coreModal');
+  if(!d){d=document.createElement('div');d.id='coreModal';d.className='v8-modal';document.body.appendChild(d)}
+  d.innerHTML='<div class="v8-dialog"><div class="head"><b>'+H(title)+'</b><button class="alt" id="coreModalClose">×</button></div>'+body+'</div>';
+  d.classList.add('show');
+  document.getElementById('coreModalClose').onclick=()=>d.classList.remove('show');
+}
+function closeModal(){document.getElementById('coreModal')?.classList.remove('show')}
+function candidatePlaces(type){
+  return P.filter(p=>PlaceData.hasCoord(p)&&match(p,type))
+    .sort((a,b)=>{
+      const oa=PlaceData.ownerRecommendation(a),ob=PlaceData.ownerRecommendation(b);
+      return (ob.push-oa.push)||((oa.rank??99999)-(ob.rank??99999))||(PlaceData.recommendation(b)-PlaceData.recommendation(a));
+    });
+}
+
 function wishButtons(x){
   if(!x.wishId)return '';
   return '<div class="plan-edit">'+
     '<button class="alt" onclick="PlannerCoreUI.shiftWish('+x.wishId+',\''+hm(x.from)+'\',-30)">← 早め</button>'+
     '<button class="alt" onclick="PlannerCoreUI.shiftWish('+x.wishId+',\''+hm(x.from)+'\',30)">遅め →</button>'+
-    '<button class="alt" onclick="PlannerV8.band('+x.wishId+')">時間帯変更</button>'+
-    '<button class="alt" onclick="PlannerV8.place('+x.wishId+')">行き先変更</button>'+
+    '<button class="alt" onclick="PlannerCoreUI.band('+x.wishId+')">時間帯変更</button>'+
+    '<button class="alt" onclick="PlannerCoreUI.place('+x.wishId+')">行き先変更</button>'+
   '</div>';
 }
 function autoButtons(x){
@@ -103,9 +120,23 @@ window.PlannerCoreUI={
     w._manualTime=hm(PlannerCore.Time.toMinutes(time)+delta);w._band='auto';
     await planCore(state.lastRandom);
   },
-  async replaceAuto(placeId){
+  band(id){
+    const w=byId(id);if(!w)return;
+    const bands=[['auto','自動'],['morning','午前'],['noon','昼ごろ'],['earlypm','午後前半'],['latepm','15時前後']];
+    modal('時間帯を変更','<div class="v8-band">'+bands.map(([k,v])=>'<button data-core-band="'+k+'">'+v+'</button>').join('')+'</div>');
+    document.querySelectorAll('[data-core-band]').forEach(b=>b.onclick=async()=>{w._band=b.dataset.coreBand;w._manualTime='';closeModal();await planCore(state.lastRandom)});
+  },
+  place(id){
+    const w=byId(id);if(!w)return;
+    const ps=candidatePlaces(w.t);
+    modal('行き先を変更','<select id="corePlaceSelect"><option value="">場所もおまかせ</option>'+ps.map(p=>{const o=PlaceData.ownerRecommendation(p);return '<option value="'+H(PlaceData.keyOf(p))+'" '+(w.pid===PlaceData.keyOf(p)?'selected':'')+'>'+H(p['名称'])+' ★'+PlaceData.recommendation(p)+(o.push?' / オーナー'+o.push+(o.rank?' #'+o.rank:''):'')+'</option>'}).join('')+'</select><div style="margin-top:10px"><button id="corePlaceApply">変更する</button></div>');
+    document.getElementById('corePlaceApply').onclick=async()=>{w.pid=document.getElementById('corePlaceSelect').value;closeModal();await planCore(state.lastRandom)};
+  },
+  async replaceAuto(placeId,type){
     state.excluded.add(placeId);
-    await planCore(true);
+    const ps=candidatePlaces(type).filter(p=>!state.excluded.has(PlaceData.keyOf(p))).slice(0,20);
+    modal('自動追加の行き先を変更','<div class="sm">候補を選ぶか、「おまかせ」で再計算します。</div><select id="coreAutoPlace"><option value="">別候補をおまかせ</option>'+ps.map(p=>{const o=PlaceData.ownerRecommendation(p);return '<option value="'+H(PlaceData.keyOf(p))+'">'+H(p['名称'])+' ★'+PlaceData.recommendation(p)+(o.push?' / オーナー'+o.push+(o.rank?' #'+o.rank:''):'')+'</option>'}).join('')+'</select><div style="margin-top:10px"><button id="coreAutoApply">変更する</button></div>');
+    document.getElementById('coreAutoApply').onclick=async()=>{const chosen=document.getElementById('coreAutoPlace').value;if(chosen){for(const p of ps){const k=PlaceData.keyOf(p);if(k!==chosen)state.excluded.add(k)}}closeModal();await planCore(true)};
   },
   async removeAuto(placeId){
     state.excluded.add(placeId);

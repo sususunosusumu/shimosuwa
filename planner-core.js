@@ -145,6 +145,8 @@ function isAutoCandidate(place, options = {}) {
     minVisitValue = DEFAULT_CONFIG.minAutoVisitValue
   } = options;
 
+  const deleted = String(place.raw?.['削除予定'] ?? place['削除予定'] ?? '').toLowerCase() === 'yes';
+  if (deleted) return false;
   if (explicit) return true;
   const level = String(place.autoLevel || place['自動提案'] || 'normal');
   const visitValue = clamp(Number(place.visitValue ?? place['おすすめ度'] ?? 3) || 3, 1, 5);

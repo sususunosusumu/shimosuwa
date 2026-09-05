@@ -137,7 +137,6 @@ function renderList(){
   const q=($('q')?.value||'').trim().toLowerCase(),f=$('filter')?.value||'all',sort=$('sort')?.value||'data';
   let rows=P.filter(p=>{
     const txt=[p['名称'],p['種別'],p['カテゴリ'],p['住所']].join(' ').toLowerCase();
-    if(isDeleted(p))return false;
     if(q&&!txt.includes(q))return false;
     if(f!=='deleted'&&isDeleted(p))return false;
     if(f==='deleted'&&!isDeleted(p))return false;
@@ -215,6 +214,7 @@ function rankingRows(){
   const f=$('rankFilter')?.value||'all',q=($('rankQ')?.value||'').trim().toLowerCase(),sort=$('rankSort')?.value||'rank';
   let rows=P.filter(p=>{
     const txt=[p['名称'],p['種別'],p['カテゴリ'],p['サブカテゴリ']].join(' ').toLowerCase();
+    if(isDeleted(p))return false;
     if(q&&!txt.includes(q))return false;
     if(f==='landmark'&&!isTourism(p))return false;
     if(f==='restaurant'&&p['種別']!=='飲食店')return false;
@@ -305,6 +305,7 @@ function bulkRows(){
   const q=($('bulkQ')?.value||'').trim().toLowerCase();
   return P.filter(p=>{
     const txt=[p['名称'],p['種別'],p['カテゴリ'],p['サブカテゴリ']].join(' ').toLowerCase();
+    if(isDeleted(p))return false;
     if(q&&!txt.includes(q))return false;
     if(f==='landmark'&&!isTourism(p))return false;
     if(f==='restaurant'&&p['種別']!=='飲食店')return false;

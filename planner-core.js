@@ -5,8 +5,8 @@
  * Integrated planner core - Phase B skeleton.
  *
  * IMPORTANT:
- * - This file is intentionally NOT loaded by index.html yet.
- * - V1.11 remains the production/reference planner.
+ * - This file is loaded by index.html but remains inactive unless the Core UI adapter is enabled.
+ * - V1.11 remains the default/reference planner; ?planner=core enables the preview.
  * - Functions here are side-effect free where practical so they can be
  *   compared with the legacy planner before cut-over.
  */

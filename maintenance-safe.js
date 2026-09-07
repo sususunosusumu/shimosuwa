@@ -476,7 +476,7 @@ function selectPlace(k){
 }
 const flags=['朝食向き','昼食向き','夕食向き','軽食向き','アルコール向き','休憩向き','観光向き','買い物向き','雨の日向き','子ども向き','高齢者向き','一人向き','短時間立寄り向き'];
 
-const FOOD_TAGS=['日本酒','ワイン','クラフトビール','ビール','焼酎','カクテル','うなぎ','肉','とんかつ','ステーキ','寿司','そば','洋食','中華','定食','カフェ','スイーツ','テイクアウト','地元料理'];
+const FOOD_TAGS=['日本酒','ワイン','クラフトビール','ビール','焼酎','カクテル','うなぎ','肉','とんかつ','ステーキ','寿司','そば','洋食','中華','定食','軽食','カフェ','スイーツ','テイクアウト','地元料理'];
 
 function renderFoodTags(p){
   const el=$('foodTags');if(!el)return;
@@ -499,7 +499,7 @@ function gather(){
   Object.assign(out,collectScheduleUI(''));
   for(const n of flags){const e=$('flag_'+n);if(e)out[n+'_override']=e.value}
   for(const n of FOOD_TAGS){const e=$('food_'+n);if(e)out['飲食タグ_'+n]=e.checked?'yes':'no'}
-  for(const n of ['営業日','営業時間','定休日','最短滞在時間_分','推奨滞在時間_分','最大滞在時間_分']){const e=$(n);if(e)out[n+'_override']=e.value.trim()}
+  for(const n of ['最短滞在時間_分','推奨滞在時間_分','最大滞在時間_分']){const e=$(n);if(e)out[n+'_override']=e.value.trim()}
   out['管理更新日']=new Date().toISOString().slice(0,10);
   return out;
 }

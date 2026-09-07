@@ -335,6 +335,104 @@ function bindDetails(root=document){
   root.querySelectorAll('.safe-detail').forEach(b=>b.onclick=()=>selectPlace(b.dataset.key));
 }
 function isDeleted(p){return String(p['削除予定']||'').toLowerCase()==='yes'}
+
+function googleSearchUrl(p){
+  const direct=String(p?.['GoogleマップURL_確定']||'').trim();
+  if(direct)return direct;
+  const q=[p?.['名称'],p?.['住所']].filter(Boolean).join(' ');
+  return q?'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q):'';
+}
+window.openCurrentGoogleMap=function(){
+  const p=P.find(x=>key(x)===selected);if(!p)return;
+  const url=String($('GoogleマップURL_確定')?.value||'').trim()||googleSearchUrl(p);
+  if(!url){alert('Google Mapsで開くための名称・住所がありません。');return}
+  window.open(url,'_blank','noopener');
+};
+
+function hasStructuredWeekdays(p){
+  return WD.some(d=>String(p['営業_'+d]??'').trim()!=='');
+}
+function hasStructuredHours(p){
+  return [1,2,3].some(i=>String(p['営業時間'+i+'_開始']??'').trim()||String(p['営業時間'+i+'_終了']??'').trim());
+}
+async function fetchGooglePlaceDetails(p){
+  await ensureGoogleForNewPlace();
+  const {Place}=await google.maps.importLibrary('places');
+  const fields=['id','displayName','formattedAddress','location','googleMapsURI','websiteURI','regularOpeningHours','rating','userRatingCount','nationalPhoneNumber'];
+  const pid=String(p.google_place_id||'').trim();
+  if(pid){
+    const gp=new Place({id:pid});
+    await gp.fetchFields({fields});
+    return gp;
+  }
+  const q=[p['名称'],p['住所']||'下諏訪町 長野県'].filter(Boolean).join(' ');
+  const r=await Place.searchByText({textQuery:q,fields,language:'ja',region:'jp',maxResultCount:3});
+  const arr=r.places||[];
+  if(!arr.length)throw new Error('Google Mapsで地点を特定できません');
+  return arr[0];
+}
+function googleSchedulePatch(best,p){
+  const wh=normalizeWeekdayText(best.regularOpeningHours?.periods||[]);
+  const out={};
+  if(!hasStructuredWeekdays(p)&&wh.days){
+    const open=WD.filter(d=>wh.days==='毎日'||wh.days.includes(d));
+    for(const d of WD)out['営業_'+d]=open.includes(d)?'yes':'no';
+    out['営業日_override']=wh.days;
+    out['定休日_override']=wh.closed;
+  }
+  if(!hasStructuredHours(p)&&wh.hours){
+    const ranges=[...wh.hours.matchAll(/(\d{2}:\d{2})-(\d{2}:\d{2})/g)].slice(0,3);
+    ranges.forEach((m,i)=>{
+      out['営業時間'+(i+1)+'_開始']=m[1];
+      out['営業時間'+(i+1)+'_終了']=m[2];
+    });
+    out['営業時間_override']=wh.hours;
+  }
+  if(!String(p['GoogleマップURL_確定']||'').trim()&&best.googleMapsURI)out['GoogleマップURL_確定']=best.googleMapsURI;
+  if(!String(p['公式WebページURL']||'').trim()&&best.websiteURI)out['公式WebページURL']=best.websiteURI;
+  if(!String(p.google_place_id||'').trim()&&best.id)out.google_place_id=best.id;
+  if(!String(p['Google評価']||'').trim()&&best.rating!=null)out['Google評価']=String(best.rating);
+  if(!String(p['口コミ件数']||'').trim()&&best.userRatingCount!=null)out['口コミ件数']=String(best.userRatingCount);
+  if(!String(p['電話番号']||'').trim()&&best.nationalPhoneNumber)out['電話番号']=best.nationalPhoneNumber;
+  if(Object.keys(out).length)out['管理更新日']=new Date().toISOString().slice(0,10);
+  return out;
+}
+window.refreshMissingGoogleHours=async function(){
+  const key=$('newGoogleApiKey')?.value.trim()||localStorage.getItem(GOOGLE_KEY_STORE)||'';
+  if(!key){
+    alert('先に「新しい地点を追加」を開き、Google Maps APIキーを入力してください。');
+    return;
+  }
+  const targets=P.filter(p=>!isDeleted(p)&&(!hasStructuredWeekdays(p)||!hasStructuredHours(p)||!String(p['GoogleマップURL_確定']||'').trim()));
+  if(!targets.length){alert('未設定の営業情報はありません。');return}
+  if(!confirm(targets.length+'件について、未設定の営業日・営業時間・Google Maps URLをGoogleから補完します。既存値は上書きしません。実行しますか？'))return;
+  const edits=loadEdits();
+  let ok=0,ng=0,skip=0;
+  const status=$('googleBulkState')||$('count');
+  for(let i=0;i<targets.length;i++){
+    const p=targets[i];
+    if(status)status.textContent='Google取得中 '+(i+1)+' / '+targets.length+' : '+p['名称'];
+    try{
+      const best=await fetchGooglePlaceDetails(p);
+      const patch=googleSchedulePatch(best,p);
+      if(Object.keys(patch).length>1){
+        const k=keyOfSafe(p);
+        edits[k]={...(edits[k]||{}),...patch};
+        ok++;
+      }else skip++;
+    }catch(e){
+      console.warn('Google refresh failed',p['名称'],e);
+      ng++;
+    }
+    await new Promise(r=>setTimeout(r,120));
+  }
+  saveEdits(edits);
+  refresh();
+  if(selected)selectPlace(selected);
+  if(status)status.innerHTML='<span class="unsaved">Google補完完了: '+ok+'件更新 / '+skip+'件変更なし / '+ng+'件取得失敗。ブラウザ保存済み・GitHub未反映</span>';
+};
+function keyOfSafe(p){return PlaceData.keyOf(p)}
+
 function renderList(){
   const q=($('q')?.value||'').trim().toLowerCase(),f=$('filter')?.value||'all',sort=$('sort')?.value||'data';
   let rows=P.filter(p=>{
@@ -368,10 +466,11 @@ function selectPlace(k){
   selected=k;const p=P.find(x=>key(x)===k);if(!p)return;
   $('empty').style.display='none';$('editor').style.display='block';
   $('title').textContent=p['名称'];$('idline').textContent=(p.place_id||'')+' / '+(p['種別']||'');
-  const fields=['名称','種別','カテゴリ','サブカテゴリ','住所','latitude','longitude','営業日','営業時間','定休日','おすすめ度','オーナー推し度','オーナーおすすめ順','オーナー評価メモ','自動提案','おすすめ時間帯','対象','除外条件','公開メモ','運営メモ','体験・できること','最短滞在時間_分','推奨滞在時間_分','最大滞在時間_分','屋内外','徒歩アクセス難易度','坂道','トイレ','多目的トイレ','座れる場所','車椅子対応','駐車場','最寄りバス停','情報源_web','確認ステータス'];
+  const fields=['名称','種別','カテゴリ','サブカテゴリ','住所','latitude','longitude','GoogleマップURL_確定','公式WebページURL','google_place_id','営業日','営業時間','定休日','おすすめ度','オーナー推し度','オーナーおすすめ順','オーナー評価メモ','自動提案','おすすめ時間帯','対象','除外条件','公開メモ','運営メモ','体験・できること','最短滞在時間_分','推奨滞在時間_分','最大滞在時間_分','屋内外','徒歩アクセス難易度','坂道','トイレ','多目的トイレ','座れる場所','車椅子対応','駐車場','最寄りバス停','情報源_web','確認ステータス'];
   for(const n of fields)setIf(n,['営業日','営業時間','定休日'].includes(n)?PlaceData.effective(p,n):p[n]);
   applyScheduleUI('',PlaceData.effective(p,'営業日'),PlaceData.effective(p,'営業時間'));
   renderFlags(p);renderFoodTags(p);
+  if($('GoogleマップURL_確定')&&!$('GoogleマップURL_確定').value)$('GoogleマップURL_確定').value=googleSearchUrl(p);
   $('saveState').innerHTML=isDeleted(p)?'<span class="unsaved">この地点は削除予定です</span>':'';
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -394,7 +493,7 @@ function renderFlags(p){
 }
 function gather(){
   const p=P.find(x=>key(x)===selected);if(!p)return null;
-  const fields=['名称','種別','カテゴリ','サブカテゴリ','住所','latitude','longitude','営業日','営業時間','定休日','おすすめ度','オーナー推し度','オーナーおすすめ順','オーナー評価メモ','自動提案','おすすめ時間帯','対象','除外条件','公開メモ','運営メモ','体験・できること','最短滞在時間_分','推奨滞在時間_分','最大滞在時間_分','屋内外','徒歩アクセス難易度','坂道','トイレ','多目的トイレ','座れる場所','車椅子対応','駐車場','最寄りバス停','情報源_web','確認ステータス'];
+  const fields=['名称','種別','カテゴリ','サブカテゴリ','住所','latitude','longitude','GoogleマップURL_確定','公式WebページURL','google_place_id','営業日','営業時間','定休日','おすすめ度','オーナー推し度','オーナーおすすめ順','オーナー評価メモ','自動提案','おすすめ時間帯','対象','除外条件','公開メモ','運営メモ','体験・できること','最短滞在時間_分','推奨滞在時間_分','最大滞在時間_分','屋内外','徒歩アクセス難易度','坂道','トイレ','多目的トイレ','座れる場所','車椅子対応','駐車場','最寄りバス停','情報源_web','確認ステータス'];
   const out={};
   for(const n of fields){const e=$(n);if(e)out[n]=e.value.trim()}
   Object.assign(out,collectScheduleUI(''));

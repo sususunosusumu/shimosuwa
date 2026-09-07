@@ -310,7 +310,7 @@ function matchWishType(place, type) {
   const suitable = place.suitable || {};
 
   if (type === TYPE.snack) return !!suitable.snack || /カフェ|喫茶|ベーカリー|パン|菓子|ケーキ|軽食/.test(text);
-  if (type === TYPE.lunch) return !!suitable.lunch || p['種別'] === '飲食店';
+  if (type === TYPE.lunch) return !!suitable.lunch || (window.PlaceData?.isFoodType ? window.PlaceData.isFoodType(p) : /^(飲食店|ラーメン系|焼肉|その他飲食|軽食)$/.test(String(p['種別']||'')));
   if (type === TYPE.cafe) return /カフェ|喫茶/.test(text);
   if (type === TYPE.onsen) return /温泉|足湯/.test(text);
   if (type === TYPE.park) return /公園|自然|湖畔|散歩/.test(text);

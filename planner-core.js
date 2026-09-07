@@ -23,6 +23,7 @@ const TYPE = Object.freeze({
   lunch: 'lunch',
   landmark: 'landmark',
   onsen: 'onsen',
+  footbath: 'footbath',
   cafe: 'cafe',
   park: 'park',
   rest: 'rest',
@@ -32,6 +33,7 @@ const TYPE = Object.freeze({
 const FLEXIBLE_TYPES = new Set([
   TYPE.landmark,
   TYPE.onsen,
+  TYPE.footbath,
   TYPE.park,
   TYPE.cafe,
   TYPE.rest
@@ -312,7 +314,8 @@ function matchWishType(place, type) {
   if (type === TYPE.snack) return !!suitable.snack || /カフェ|喫茶|ベーカリー|パン|菓子|ケーキ|軽食/.test(text);
   if (type === TYPE.lunch) return !!suitable.lunch || (window.PlaceData?.isFoodType ? window.PlaceData.isFoodType(p) : /^(飲食店|ラーメン系|焼肉|その他飲食|軽食)$/.test(String(p['種別']||'')));
   if (type === TYPE.cafe) return /カフェ|喫茶/.test(text);
-  if (type === TYPE.onsen) return /温泉|足湯/.test(text);
+  if (type === TYPE.onsen) return /温泉/.test(text) && !/足湯/.test(text);
+  if (type === TYPE.footbath) return /足湯/.test(text);
   if (type === TYPE.park) return /公園|自然|湖畔|散歩/.test(text);
   if (type === TYPE.rest) return !!suitable.rest || /休憩|公園|カフェ|温泉/.test(text);
   if (type === TYPE.landmark) {

@@ -71,6 +71,8 @@ function applyLocalMaintenance(rows){
   }catch(e){}
   return out.map(hydrateStructuredSchedule);
 }
+function foodTags(p){return ['日本酒','クラフトビール','うなぎ','肉','とんかつ','ステーキ','寿司','そば','洋食','中華','定食','カフェ','スイーツ','テイクアウト','地元料理'].filter(n=>truthy(p?.['飲食タグ_'+n]));}
+function hasFoodTag(p,tag){return foodTags(p).includes(tag)}
 function isFoodType(p){
   return /^(飲食店|ラーメン系|焼肉|その他飲食|軽食)$/.test(String(p?.['種別']||''));
 }
@@ -139,11 +141,11 @@ async function loadAll(){
   const legacyStats=applyLegacyCoordinates(places);
   return {places,management:parseCSV(managementText),legacyStats,files:{base:BASE_FILES,attributes:ATTR_FILES,management:MANAGEMENT_FILE}};
 }
-function managementHeaders(){return ['place_id','名称','種別','カテゴリ','サブカテゴリ','住所','latitude','longitude','公式WebページURL','GoogleマップURL_確定','google_place_id','Google評価','口コミ件数','電話番号','おすすめ度','オーナー推し度','オーナーおすすめ順','オーナー評価メモ','削除予定','自動提案','おすすめ用途','おすすめ時間帯','対象','除外条件','公開メモ','運営メモ','管理更新日','営業_月','営業_火','営業_水','営業_木','営業_金','営業_土','営業_日','営業時間1_開始','営業時間1_終了','営業時間2_開始','営業時間2_終了','営業時間3_開始','営業時間3_終了','営業日_override','営業時間_override','定休日_override','朝食向き_override','おやつ向き_override','昼食向き_override','夕食向き_override','休憩向き_override','観光向き_override','買い物向き_override','雨の日向き_override','子ども向き_override','高齢者向き_override','一人向き_override','短時間立寄り向き_override','体験・できること','最短滞在時間_分_override','推奨滞在時間_分_override','最大滞在時間_分_override','屋内外','徒歩アクセス難易度','坂道','トイレ','多目的トイレ','座れる場所','車椅子対応','駐車場','最寄りバス停','情報源_web','確認ステータス'];}
+function managementHeaders(){return ['place_id','名称','種別','カテゴリ','サブカテゴリ','住所','latitude','longitude','公式WebページURL','GoogleマップURL_確定','google_place_id','Google評価','口コミ件数','電話番号','おすすめ度','オーナー推し度','オーナーおすすめ順','オーナー評価メモ','削除予定','自動提案','おすすめ用途','おすすめ時間帯','対象','除外条件','公開メモ','運営メモ','管理更新日','営業_月','営業_火','営業_水','営業_木','営業_金','営業_土','営業_日','営業時間1_開始','営業時間1_終了','営業時間2_開始','営業時間2_終了','営業時間3_開始','営業時間3_終了','営業日_override','営業時間_override','定休日_override','朝食向き_override','おやつ向き_override','昼食向き_override','夕食向き_override','休憩向き_override','観光向き_override','買い物向き_override','雨の日向き_override','子ども向き_override','高齢者向き_override','一人向き_override','短時間立寄り向き_override','体験・できること','最短滞在時間_分_override','推奨滞在時間_分_override','最大滞在時間_分_override','屋内外','徒歩アクセス難易度','坂道','トイレ','多目的トイレ','座れる場所','車椅子対応','駐車場','最寄りバス停','情報源_web','飲食タグ_日本酒','飲食タグ_クラフトビール','飲食タグ_うなぎ','飲食タグ_肉','飲食タグ_とんかつ','飲食タグ_ステーキ','飲食タグ_寿司','飲食タグ_そば','飲食タグ_洋食','飲食タグ_中華','飲食タグ_定食','飲食タグ_カフェ','飲食タグ_スイーツ','飲食タグ_テイクアウト','飲食タグ_地元料理','確認ステータス'];}
 function effective(p,name){const o=p[name+'_override'];return o!==undefined&&o!==''?o:(p[name]??'');}
 function autoLevel(p){return String(p['自動提案']||'normal');}
 function recommendation(p){return Math.max(1,Math.min(5,num(p['おすすめ度'],3)));}
 function ownerRecommendation(p){const push=Math.max(0,Math.min(5,num(p['オーナー推し度'],0)));const raw=String(p['オーナーおすすめ順']??'').trim();const n=raw===''?null:Number(raw);const rank=Number.isFinite(n)&&n>0?Math.round(n):null;return {push,rank,note:String(p['オーナー評価メモ']||'')};}
-window.PlaceData={parseCSV,toCSV,truthy,no,num,lat,lng,hasCoord,keyOf,mergeRows,loadAll,managementHeaders,effective,autoLevel,recommendation,ownerRecommendation,defaultManagement,applyLegacyCoordinates,hydrateStructuredSchedule,applyLocalMaintenance,isFoodType};
+window.PlaceData={parseCSV,toCSV,truthy,no,num,lat,lng,hasCoord,keyOf,mergeRows,loadAll,managementHeaders,effective,autoLevel,recommendation,ownerRecommendation,defaultManagement,applyLegacyCoordinates,hydrateStructuredSchedule,applyLocalMaintenance,isFoodType,foodTags,hasFoodTag};
 })();
 

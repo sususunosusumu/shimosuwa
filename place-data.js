@@ -71,6 +71,62 @@ function applyLocalMaintenance(rows){
   }catch(e){}
   return out.map(hydrateStructuredSchedule);
 }
+
+function inferStructuredFromLegacy(p){
+  // Weekdays: derive structured flags only when they are not already explicitly stored.
+  const existingDayFlags=WEEKDAYS.some(d=>String(p['営業_'+d]??'').trim()!=='');
+  if(!existingDayFlags){
+    const days=String(effective(p,'営業日')||'').trim();
+    const closed=String(effective(p,'定休日')||'').trim();
+    if(days){
+      for(const d of WEEKDAYS){
+        let open=true;
+        if(days==='毎日') open=true;
+        else if(days==='平日') open=!['土','日'].includes(d);
+        else open=days.includes(d);
+        if(closed&&closed.includes(d))open=false;
+        p['営業_'+d]=open?'yes':'no';
+      }
+    }
+  }
+
+  // Hours: derive up to 3 structured ranges from the legacy hours string.
+  const hasRanges=[1,2,3].some(i=>String(p['営業時間'+i+'_開始']??'').trim()||String(p['営業時間'+i+'_終了']??'').trim());
+  if(!hasRanges){
+    const hours=String(effective(p,'営業時間')||'');
+    const ranges=[...hours.matchAll(/(\d{1,2}:\d{2})\s*(?:-|〜|～)\s*(\d{1,2}:\d{2})/g)].slice(0,3);
+    ranges.forEach((m,i)=>{
+      p['営業時間'+(i+1)+'_開始']=m[1];
+      p['営業時間'+(i+1)+'_終了']=m[2];
+    });
+  }
+
+  // Food tags: infer only empty tags from existing category/menu text.
+  const text=[p['種別'],p['カテゴリ'],p['サブカテゴリ'],p['料理ジャンル'],p['提供メニュータグ'],p['体験・できること'],p['名称']].filter(Boolean).join(' ');
+  const rules={
+    '日本酒':/日本酒|地酒|清酒/,
+    'クラフトビール':/クラフトビール|地ビール/,
+    'うなぎ':/うなぎ|鰻/,
+    '肉':/肉料理|焼肉|ステーキ|ハンバーグ|とんかつ|豚|牛|鶏/,
+    'とんかつ':/とんかつ|トンカツ|豚カツ/,
+    'ステーキ':/ステーキ/,
+    '寿司':/寿司|鮨|すし/,
+    'そば':/そば|蕎麦/,
+    '洋食':/洋食|オムライス|ハンバーグ|パスタ|ピザ/,
+    '中華':/中華|中国料理|餃子|チャーハン|麻婆/,
+    '定食':/定食|食堂/,
+    'カフェ':/カフェ|喫茶|コーヒー/,
+    'スイーツ':/スイーツ|ケーキ|菓子|甘味|ジェラート|アイス/,
+    'テイクアウト':/テイクアウト|持ち帰り/,
+    '地元料理':/郷土料理|地元料理|信州|諏訪名物|ご当地/
+  };
+  for(const [tag,re] of Object.entries(rules)){
+    const k='飲食タグ_'+tag;
+    if(String(p[k]??'').trim()===''&&re.test(text))p[k]='yes';
+  }
+  return hydrateStructuredSchedule(p);
+}
+
 function foodTags(p){return ['日本酒','クラフトビール','うなぎ','肉','とんかつ','ステーキ','寿司','そば','洋食','中華','定食','カフェ','スイーツ','テイクアウト','地元料理'].filter(n=>truthy(p?.['飲食タグ_'+n]));}
 function hasFoodTag(p,tag){return foodTags(p).includes(tag)}
 function isFoodType(p){
@@ -85,7 +141,7 @@ function defaultManagement(p){
   if(/鉄道駅|交通ハブ/.test(text)){level='conditional';score='3';}
   return {'おすすめ度':score,'オーナー推し度':'0','オーナーおすすめ順':'','オーナー評価メモ':'','削除予定':'','自動提案':level,'おすすめ時間帯':'','対象':'','除外条件':'','公開メモ':'','運営メモ':'','管理更新日':''};
 }
-function applyManagementDefaults(rows){return rows.map(p=>hydrateStructuredSchedule({...defaultManagement(p),...p}));}
+function applyManagementDefaults(rows){return rows.map(p=>inferStructuredFromLegacy({...defaultManagement(p),...p}));}
 function localJSON(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null}}
 function applyLegacyCoordinates(rows){
   const stats={googlePins:0,manualEdits:0,addressCache:0,restored:0,alreadyHad:0,total:rows.length,storageAvailable:true};

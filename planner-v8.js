@@ -3,7 +3,7 @@
 const CFG={walkMax:10,busWaitMax:10};
 const ST={running:false,lastRandom:false,gtfsReady:false};
 const BAND={auto:'おまかせ',morning:'午前',noon:'昼ごろ',earlypm:'午後前半',latepm:'15時前後'};
-const LAB={snack:'🍰 おやつ',lunch:'🍽️ 昼食',landmark:'⛩️ 観光',onsen:'♨️ 温泉',cafe:'☕ カフェ',park:'🌳 公園・散歩',rest:'🪑 休憩',free:'⏳ 自由時間'};
+const LAB={snack:'🍰 おやつ',lunch:'🍽️ 昼食',landmark:'⛩️ 観光',onsen:'♨️ 温泉',footbath:'🦶 足湯',cafe:'☕ カフェ',park:'🌳 公園・散歩',rest:'🪑 休憩',free:'⏳ 自由時間'};
 const GT={stops:[],routes:new Map(),trips:new Map(),byStop:new Map(),byTrip:new Map(),calendar:new Map()};
 const H=s=>esc(s), Q=p=>({name:p['名称'],lat:PlaceData.lat(p),lng:PlaceData.lng(p)});
 function tm(v){const m=String(v||'').match(/^(\d+):(\d{2})/);return m?+m[1]*60+ +m[2]:999999}

@@ -38,11 +38,50 @@ function parseGoogleMapsUrl(url){
 
 function classifyGooglePlace(types=[],primary=''){
   const t=[primary,...types].filter(Boolean).join(' ').toLowerCase();
-  if(/restaurant|cafe|bakery|bar|food|meal_takeaway|meal_delivery/.test(t))return {type:'飲食店',category:primary||types[0]||'飲食'};
+  if(/ramen/.test(t))return {type:'ラーメン系',category:'ラーメン'};
+  if(/barbecue|bbq|korean_restaurant/.test(t))return {type:'焼肉',category:'焼肉'};
+  if(/cafe|bakery|meal_takeaway|dessert|coffee/.test(t))return {type:'軽食',category:primary||types[0]||'軽食'};
+  if(/restaurant|bar|food|meal_delivery/.test(t))return {type:'その他飲食',category:primary||types[0]||'飲食'};
+  if(/public_bathroom|toilet|restroom/.test(t))return {type:'トイレ',category:'トイレ'};
+  if(/spa|public_bath/.test(t))return {type:'温泉',category:'温泉'};
   if(/train_station|transit_station|bus_station/.test(t))return {type:'交通',category:primary||types[0]||'交通'};
-  if(/park|tourist_attraction|museum|art_gallery|place_of_worship|shrine|temple|spa|natural_feature|point_of_interest/.test(t))return {type:'ランドマーク',category:primary||types[0]||'観光'};
+  if(/park|tourist_attraction|museum|art_gallery|place_of_worship|shrine|temple|natural_feature|point_of_interest/.test(t))return {type:'ランドマーク',category:primary||types[0]||'観光'};
   if(/store|shopping_mall|supermarket|convenience_store/.test(t))return {type:'サービス',category:primary||types[0]||'店舗'};
   return {type:'ランドマーク',category:primary||types[0]||'地点'};
+}
+
+
+const WD=['月','火','水','木','金','土','日'];
+function applyScheduleUI(prefix,daysText,hoursText){
+  const days=String(daysText||'');
+  for(const d of WD){
+    const e=$(prefix+'営業_'+d);
+    if(e)e.checked=days==='毎日'||days.includes(d);
+  }
+  const ranges=[...String(hoursText||'').matchAll(/(\d{1,2}:\d{2})\s*(?:-|〜|～)\s*(\d{1,2}:\d{2})/g)].slice(0,3);
+  for(let i=1;i<=3;i++){
+    const a=$(prefix+'営業時間'+i+'_開始'),b=$(prefix+'営業時間'+i+'_終了');
+    if(a)a.value=ranges[i-1]?.[1]||'';
+    if(b)b.value=ranges[i-1]?.[2]||'';
+  }
+}
+function collectScheduleUI(prefix){
+  const open=WD.filter(d=>$(prefix+'営業_'+d)?.checked);
+  const closed=WD.filter(d=>!open.includes(d));
+  const ranges=[];
+  const out={};
+  for(const d of WD)out['営業_'+d]=$(prefix+'営業_'+d)?.checked?'yes':'no';
+  for(let i=1;i<=3;i++){
+    const a=$(prefix+'営業時間'+i+'_開始')?.value||'';
+    const b=$(prefix+'営業時間'+i+'_終了')?.value||'';
+    out['営業時間'+i+'_開始']=a;
+    out['営業時間'+i+'_終了']=b;
+    if(a&&b)ranges.push(a+'-'+b);
+  }
+  out['営業日_override']=open.length===7?'毎日':open.join('・');
+  out['定休日_override']=closed.join('・');
+  out['営業時間_override']=ranges.join(' / ');
+  return out;
 }
 
 function normalizeWeekdayText(periods){
@@ -153,6 +192,7 @@ window.importNewPlaceFromGoogle=async function(){
     $('new営業日').value=wh.days;
     $('new営業時間').value=wh.hours;
     $('new定休日').value=wh.closed;
+    applyScheduleUI('new',wh.days,wh.hours);
     $('newGoogle評価').value=best.rating??'';
     $('new口コミ件数').value=best.userRatingCount??'';
     $('new電話番号').value=best.nationalPhoneNumber||'';
@@ -182,6 +222,8 @@ window.openNewPlace=function(){
 window.closeNewPlace=function(){$('newPlacePanel').style.display='none'};
 window.clearNewPlaceForm=function(){
   for(const id of ['new名称','newカテゴリ','new住所','newLatitude','newLongitude','newGoogleMapsURL','newOfficialURL','new営業日','new営業時間','new定休日','newGoogle評価','new口コミ件数','new電話番号','newMemo']){const e=$(id);if(e)e.value=''}
+  for(const d of WD){const e=$('new営業_'+d);if(e)e.checked=false}
+  for(let i=1;i<=3;i++){if($('new営業時間'+i+'_開始'))$('new営業時間'+i+'_開始').value='';if($('new営業時間'+i+'_終了'))$('new営業時間'+i+'_終了').value=''}
   if($('new種別'))$('new種別').value='ランドマーク';
   if($('newおすすめ度'))$('newおすすめ度').value='3';
   if($('newOwnerPush'))$('newOwnerPush').value='0';
@@ -265,6 +307,7 @@ window.createNewPlace=function(){
     '営業日':$('new営業日').value.trim(),
     '営業時間':$('new営業時間').value.trim(),
     '定休日':$('new定休日').value.trim(),
+    ...collectScheduleUI('new'),
     'Google評価':$('newGoogle評価').value.trim(),
     '口コミ件数':$('new口コミ件数').value.trim(),
     '電話番号':$('new電話番号').value.trim(),
@@ -327,6 +370,7 @@ function selectPlace(k){
   $('title').textContent=p['名称'];$('idline').textContent=(p.place_id||'')+' / '+(p['種別']||'');
   const fields=['名称','種別','カテゴリ','サブカテゴリ','住所','latitude','longitude','営業日','営業時間','定休日','おすすめ度','オーナー推し度','オーナーおすすめ順','オーナー評価メモ','自動提案','おすすめ時間帯','対象','除外条件','公開メモ','運営メモ','体験・できること','最短滞在時間_分','推奨滞在時間_分','最大滞在時間_分','屋内外','徒歩アクセス難易度','坂道','トイレ','多目的トイレ','座れる場所','車椅子対応','駐車場','最寄りバス停','情報源_web','確認ステータス'];
   for(const n of fields)setIf(n,['営業日','営業時間','定休日'].includes(n)?PlaceData.effective(p,n):p[n]);
+  applyScheduleUI('',PlaceData.effective(p,'営業日'),PlaceData.effective(p,'営業時間'));
   renderFlags(p);
   $('saveState').innerHTML=isDeleted(p)?'<span class="unsaved">この地点は削除予定です</span>':'';
   window.scrollTo({top:0,behavior:'smooth'});
@@ -341,6 +385,7 @@ function gather(){
   const fields=['名称','種別','カテゴリ','サブカテゴリ','住所','latitude','longitude','営業日','営業時間','定休日','おすすめ度','オーナー推し度','オーナーおすすめ順','オーナー評価メモ','自動提案','おすすめ時間帯','対象','除外条件','公開メモ','運営メモ','体験・できること','最短滞在時間_分','推奨滞在時間_分','最大滞在時間_分','屋内外','徒歩アクセス難易度','坂道','トイレ','多目的トイレ','座れる場所','車椅子対応','駐車場','最寄りバス停','情報源_web','確認ステータス'];
   const out={};
   for(const n of fields){const e=$(n);if(e)out[n]=e.value.trim()}
+  Object.assign(out,collectScheduleUI(''));
   for(const n of flags){const e=$('flag_'+n);if(e)out[n+'_override']=e.value}
   for(const n of ['営業日','営業時間','定休日','最短滞在時間_分','推奨滞在時間_分','最大滞在時間_分']){const e=$(n);if(e)out[n+'_override']=e.value.trim()}
   out['管理更新日']=new Date().toISOString().slice(0,10);
@@ -451,11 +496,11 @@ const BULK_GROUPS={
     ['最寄りバス停','最寄りバス停','input','text']
   ],
   hours:[
-    ['営業日','営業日','input','text'],
-    ['営業時間','営業時間','input','text'],
-    ['定休日','定休日','input','text'],
-    ['対象','対象','input','text'],
-    ['除外条件','除外条件','input','text']
+    ['営業_月','月','select','yn'],['営業_火','火','select','yn'],['営業_水','水','select','yn'],['営業_木','木','select','yn'],['営業_金','金','select','yn'],['営業_土','土','select','yn'],['営業_日','日','select','yn'],
+    ['営業時間1_開始','開始1','input','time'],['営業時間1_終了','終了1','input','time'],
+    ['営業時間2_開始','開始2','input','time'],['営業時間2_終了','終了2','input','time'],
+    ['営業時間3_開始','開始3','input','time'],['営業時間3_終了','終了3','input','time'],
+    ['対象','対象','input','text'],['除外条件','除外条件','input','text']
   ]
 };
 
@@ -498,7 +543,7 @@ function bulkEditorCell(p,col){
     const yes=PlaceData.truthy(v),no=PlaceData.no(v);
     return '<select '+base+'><option value="" '+(!yes&&!no?'selected':'')+'>unknown</option><option value="yes" '+(yes?'selected':'')+'>yes</option><option value="no" '+(no?'selected':'')+'>no</option></select>';
   }
-  const type=mode==='number'?'number':'text';
+  const type=mode==='number'?'number':mode==='time'?'time':'text';
   return '<input type="'+type+'" '+base+' value="'+esc(v)+'" style="min-width:'+(mode==='text'?'150px':'80px')+'">';
 }
 
@@ -530,7 +575,7 @@ window.saveBulkEditor=function(){
     const k=e.dataset.bulkKey,field=e.dataset.bulkField;
     if(!edits[k])edits[k]={};
     const value=e.value.trim();
-    if(['朝食向き','おやつ向き','昼食向き','夕食向き','休憩向き','観光向き','買い物向き','雨の日向き','子ども向き','高齢者向き','一人向き','短時間立寄り向き','営業日','営業時間','定休日','最短滞在時間_分','推奨滞在時間_分','最大滞在時間_分'].includes(field)){
+    if(['朝食向き','おやつ向き','昼食向き','夕食向き','休憩向き','観光向き','買い物向き','雨の日向き','子ども向き','高齢者向き','一人向き','短時間立寄り向き','最短滞在時間_分','推奨滞在時間_分','最大滞在時間_分'].includes(field)){
       edits[k][field+'_override']=value;
     }else{
       edits[k][field]=value;

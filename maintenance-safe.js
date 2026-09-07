@@ -208,12 +208,12 @@ window.importNewPlaceFromGoogle=async function(){
 function loadNewPlaces(){try{return JSON.parse(localStorage.getItem(NEW_STORE)||'[]')}catch(e){return[]}}
 function saveNewPlaces(rows){localStorage.setItem(NEW_STORE,JSON.stringify(rows))}
 function nextPlaceId(type){
-  const prefix=type==='飲食店'?'R':type==='交通'?'T':type==='ランドマーク'?'L':'N';
+  const prefix=/^(飲食店|ラーメン系|焼肉|その他飲食|軽食)$/.test(type)?'R':type==='交通'?'T':/^(ランドマーク|温泉|足湯)$/.test(type)?'L':type==='トイレ'?'W':'N';
   const used=new Set([...BASE,...loadNewPlaces()].map(p=>String(p.place_id||'')));
   let n=1;while(used.has(prefix+String(n).padStart(3,'0')))n++;
   return prefix+String(n).padStart(3,'0');
 }
-function allBaseWithNew(){return [...SOURCE_BASE,...loadNewPlaces()]}
+function allBaseWithNew(){return PlaceData.mergeRows(SOURCE_BASE,loadNewPlaces())}
 window.openNewPlace=function(){
   $('newPlacePanel').style.display='block';
   $('newPlaceState').textContent='';

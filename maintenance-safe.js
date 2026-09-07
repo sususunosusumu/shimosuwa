@@ -371,11 +371,23 @@ function selectPlace(k){
   const fields=['名称','種別','カテゴリ','サブカテゴリ','住所','latitude','longitude','営業日','営業時間','定休日','おすすめ度','オーナー推し度','オーナーおすすめ順','オーナー評価メモ','自動提案','おすすめ時間帯','対象','除外条件','公開メモ','運営メモ','体験・できること','最短滞在時間_分','推奨滞在時間_分','最大滞在時間_分','屋内外','徒歩アクセス難易度','坂道','トイレ','多目的トイレ','座れる場所','車椅子対応','駐車場','最寄りバス停','情報源_web','確認ステータス'];
   for(const n of fields)setIf(n,['営業日','営業時間','定休日'].includes(n)?PlaceData.effective(p,n):p[n]);
   applyScheduleUI('',PlaceData.effective(p,'営業日'),PlaceData.effective(p,'営業時間'));
-  renderFlags(p);
+  renderFlags(p);renderFoodTags(p);
   $('saveState').innerHTML=isDeleted(p)?'<span class="unsaved">この地点は削除予定です</span>':'';
   window.scrollTo({top:0,behavior:'smooth'});
 }
 const flags=['朝食向き','おやつ向き','昼食向き','夕食向き','休憩向き','観光向き','買い物向き','雨の日向き','子ども向き','高齢者向き','一人向き','短時間立寄り向き'];
+
+const FOOD_TAGS=['日本酒','クラフトビール','うなぎ','肉','とんかつ','ステーキ','寿司','そば','洋食','中華','定食','カフェ','スイーツ','テイクアウト','地元料理'];
+
+function renderFoodTags(p){
+  const el=$('foodTags');if(!el)return;
+  el.innerHTML=FOOD_TAGS.map(n=>{
+    const v=String(p['飲食タグ_'+n]??'');
+    const yes=PlaceData.truthy(v);
+    return '<label class="toggle"><input type="checkbox" id="food_'+esc(n)+'" '+(yes?'checked':'')+'> '+esc(n)+'</label>';
+  }).join('');
+}
+
 function renderFlags(p){
   const el=$('flags');if(!el)return;
   el.innerHTML=flags.map(n=>{const v=PlaceData.effective(p,n);return '<div class="flag"><label>'+n+'</label><select id="flag_'+n+'"><option value="">unknown</option><option value="yes" '+(PlaceData.truthy(v)?'selected':'')+'>yes</option><option value="no" '+(PlaceData.no(v)?'selected':'')+'>no</option></select></div>'}).join('');
@@ -387,6 +399,7 @@ function gather(){
   for(const n of fields){const e=$(n);if(e)out[n]=e.value.trim()}
   Object.assign(out,collectScheduleUI(''));
   for(const n of flags){const e=$('flag_'+n);if(e)out[n+'_override']=e.value}
+  for(const n of FOOD_TAGS){const e=$('food_'+n);if(e)out['飲食タグ_'+n]=e.checked?'yes':'no'}
   for(const n of ['営業日','営業時間','定休日','最短滞在時間_分','推奨滞在時間_分','最大滞在時間_分']){const e=$(n);if(e)out[n+'_override']=e.value.trim()}
   out['管理更新日']=new Date().toISOString().slice(0,10);
   return out;
@@ -501,7 +514,8 @@ const BULK_GROUPS={
     ['営業時間2_開始','開始2','input','time'],['営業時間2_終了','終了2','input','time'],
     ['営業時間3_開始','開始3','input','time'],['営業時間3_終了','終了3','input','time'],
     ['対象','対象','input','text'],['除外条件','除外条件','input','text']
-  ]
+  ],
+  foodtags: FOOD_TAGS.map(n=>['飲食タグ_'+n,n,'select','yn'])
 };
 
 function bulkRows(){

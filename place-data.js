@@ -72,6 +72,11 @@ function applyLocalMaintenance(rows){
   return out.map(hydrateStructuredSchedule);
 }
 
+function normalizePrimaryType(p){
+  const head=[p['名称'],p['カテゴリ'],p['サブカテゴリ']].filter(Boolean).join(' ');
+  if(/トイレ|公衆便所|便所/.test(head)) p['種別']='トイレ';
+  return p;
+}
 function inferStructuredFromLegacy(p){
   // Weekdays: derive structured flags only when they are not already explicitly stored.
   const existingDayFlags=WEEKDAYS.some(d=>String(p['営業_'+d]??'').trim()!=='');
@@ -152,7 +157,7 @@ function defaultManagement(p){
   if(/鉄道駅|交通ハブ/.test(text)){level='conditional';score='3';}
   return {'おすすめ度':score,'オーナー推し度':'0','オーナーおすすめ順':'','オーナー評価メモ':'','削除予定':'','自動提案':level,'おすすめ時間帯':'','対象':'','除外条件':'','公開メモ':'','運営メモ':'','管理更新日':''};
 }
-function applyManagementDefaults(rows){return rows.map(p=>inferStructuredFromLegacy({...defaultManagement(p),...p}));}
+function applyManagementDefaults(rows){return rows.map(p=>inferStructuredFromLegacy(normalizePrimaryType({...defaultManagement(p),...p})));}
 function localJSON(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null}}
 function applyLegacyCoordinates(rows){
   const stats={googlePins:0,manualEdits:0,addressCache:0,restored:0,alreadyHad:0,total:rows.length,storageAvailable:true};
@@ -213,6 +218,6 @@ function effective(p,name){const o=p[name+'_override'];return o!==undefined&&o!=
 function autoLevel(p){return String(p['自動提案']||'normal');}
 function recommendation(p){return Math.max(1,Math.min(5,num(p['おすすめ度'],3)));}
 function ownerRecommendation(p){const push=Math.max(0,Math.min(5,num(p['オーナー推し度'],0)));const raw=String(p['オーナーおすすめ順']??'').trim();const n=raw===''?null:Number(raw);const rank=Number.isFinite(n)&&n>0?Math.round(n):null;return {push,rank,note:String(p['オーナー評価メモ']||'')};}
-window.PlaceData={parseCSV,toCSV,truthy,no,num,lat,lng,hasCoord,keyOf,mergeRows,loadAll,managementHeaders,effective,autoLevel,recommendation,ownerRecommendation,defaultManagement,applyLegacyCoordinates,hydrateStructuredSchedule,applyLocalMaintenance,isFoodType,foodTags,hasFoodTag,hasAnyFoodTag};
+window.PlaceData={parseCSV,toCSV,truthy,no,num,lat,lng,hasCoord,keyOf,mergeRows,loadAll,managementHeaders,effective,autoLevel,recommendation,ownerRecommendation,defaultManagement,applyLegacyCoordinates,hydrateStructuredSchedule,applyLocalMaintenance,isFoodType,foodTags,hasFoodTag,hasAnyFoodTag,normalizePrimaryType};
 })();
 

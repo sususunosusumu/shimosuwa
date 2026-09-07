@@ -83,12 +83,16 @@ function inferStructuredFromLegacy(p){
   if(!existingDayFlags){
     const days=String(effective(p,'営業日')||'').trim();
     const closed=String(effective(p,'定休日')||'').trim();
-    if(days){
+    if(days||closed){
       for(const d of WEEKDAYS){
         let open=true;
-        if(days==='毎日') open=true;
-        else if(days==='平日') open=!['土','日'].includes(d);
-        else open=days.includes(d);
+        if(days){
+          if(days==='毎日') open=true;
+          else if(days==='平日') open=!['土','日'].includes(d);
+          else open=days.includes(d);
+        }else{
+          open=!closed.includes(d);
+        }
         if(closed&&closed.includes(d))open=false;
         p['営業_'+d]=open?'yes':'no';
       }

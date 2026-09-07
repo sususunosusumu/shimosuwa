@@ -19,12 +19,14 @@ const DEFAULT_CONFIG = Object.freeze({
 });
 
 const TYPE = Object.freeze({
-  snack: 'snack',
+  breakfast: 'breakfast',
   lunch: 'lunch',
+  dinner: 'dinner',
+  lightmeal: 'lightmeal',
+  alcohol: 'alcohol',
   landmark: 'landmark',
   onsen: 'onsen',
   footbath: 'footbath',
-  cafe: 'cafe',
   park: 'park',
   rest: 'rest',
   free: 'free'
@@ -35,7 +37,8 @@ const FLEXIBLE_TYPES = new Set([
   TYPE.onsen,
   TYPE.footbath,
   TYPE.park,
-  TYPE.cafe,
+  TYPE.lightmeal,
+  TYPE.alcohol,
   TYPE.rest
 ]);
 
@@ -94,50 +97,27 @@ function timeWindowFor(wish, snackIndex, snackTotal, start, end) {
     }
   }
 
-  if (wish.type === TYPE.lunch) {
-    return {
-      min: Math.max(start, 11 * 60 + 30),
-      max: Math.min(end, 13 * 60 + 30),
-      target: 12 * 60 + 15,
-      label: '昼食 11:30〜13:30'
-    };
+  if (wish.type === TYPE.breakfast) {
+    return {min: Math.max(start, 7 * 60), max: Math.min(end, 10 * 60), target: 8 * 60 + 30, label: '朝食 7:00〜10:00'};
   }
-
-  if (wish.type === TYPE.snack) {
-    if (snackTotal <= 1) {
-      return {
-        min: Math.max(start, 14 * 60 + 30),
-        max: Math.min(end, 15 * 60 + 45),
-        target: 15 * 60,
-        label: '午後のおやつ'
-      };
-    }
-    if (snackIndex === 0) {
-      return {
-        min: Math.max(start, 9 * 60 + 45),
-        max: Math.min(end, 10 * 60 + 45),
-        target: 10 * 60 + 15,
-        label: '午前のおやつ'
-      };
-    }
-    return {
-      min: Math.max(start, 14 * 60 + 30),
-      max: Math.min(end, 15 * 60 + 45),
-      target: 15 * 60,
-      label: '午後のおやつ'
-    };
+  if (wish.type === TYPE.lunch) {
+    return {min: Math.max(start, 11 * 60 + 30), max: Math.min(end, 13 * 60 + 30), target: 12 * 60 + 15, label: '昼食 11:30〜13:30'};
+  }
+  if (wish.type === TYPE.lightmeal) {
+    return {min: Math.max(start, 14 * 60), max: Math.min(end, 16 * 60 + 30), target: 15 * 60, label: '軽食 14:00〜16:30'};
+  }
+  if (wish.type === TYPE.dinner) {
+    return {min: Math.max(start, 17 * 60), max: Math.min(end, 20 * 60 + 30), target: 18 * 60 + 30, label: '夕食 17:00〜20:30'};
+  }
+  if (wish.type === TYPE.alcohol) {
+    return {min: Math.max(start, 17 * 60), max: end, target: Math.max(start, 18 * 60), label: 'アルコール 17:00以降'};
   }
 
   return {min: start, max: end, target: null, label: '時間帯おまかせ'};
 }
 
 function makeTimeWindows(wishes, start, end) {
-  const snacks = wishes.filter(w => w.type === TYPE.snack);
-  const snackIndex = new Map(snacks.map((w, i) => [w.id, i]));
-  return new Map(wishes.map(w => [
-    w.id,
-    timeWindowFor(w, snackIndex.get(w.id) || 0, snacks.length, start, end)
-  ]));
+  return new Map(wishes.map(w => [w.id,timeWindowFor(w,0,0,start,end)]));
 }
 
 function isAutoCandidate(place, options = {}) {
@@ -293,8 +273,10 @@ function normalizePlace(raw, placeData = window.PlaceData) {
     closedDays: effective('定休日'),
     suitable: {
       breakfast: truthy(effective('朝食向き')),
-      snack: truthy(effective('おやつ向き')),
+      lightmeal: truthy(effective('軽食向き')) || truthy(effective('おやつ向き')),
       lunch: truthy(effective('昼食向き')),
+      dinner: truthy(effective('夕食向き')),
+      alcohol: truthy(effective('アルコール向き')),
       rest: truthy(effective('休憩向き')),
       landmark: truthy(effective('観光向き')),
       rain: truthy(effective('雨の日向き')),
@@ -311,9 +293,11 @@ function matchWishType(place, type) {
   ].filter(Boolean).join(' ');
   const suitable = place.suitable || {};
 
-  if (type === TYPE.snack) return !!suitable.snack || /カフェ|喫茶|ベーカリー|パン|菓子|ケーキ|軽食/.test(text);
+  if (type === TYPE.breakfast) return !!suitable.breakfast;
   if (type === TYPE.lunch) return !!suitable.lunch || (window.PlaceData?.isFoodType ? window.PlaceData.isFoodType(p) : /^(飲食店|ラーメン系|焼肉|その他飲食|軽食)$/.test(String(p['種別']||'')));
-  if (type === TYPE.cafe) return /カフェ|喫茶/.test(text);
+  if (type === TYPE.dinner) return !!suitable.dinner || (window.PlaceData?.isFoodType ? window.PlaceData.isFoodType(p) : /^(飲食店|ラーメン系|焼肉|その他飲食|軽食)$/.test(String(p['種別']||'')));
+  if (type === TYPE.lightmeal) return !!suitable.lightmeal || /カフェ|喫茶|ベーカリー|パン|菓子|ケーキ|スイーツ|軽食/.test(text);
+  if (type === TYPE.alcohol) return !!suitable.alcohol || (window.PlaceData?.hasAnyFoodTag ? window.PlaceData.hasAnyFoodTag(p,['日本酒','ワイン','クラフトビール','ビール','焼酎','カクテル']) : /日本酒|地酒|ワイン|クラフトビール|ビール|焼酎|カクテル|居酒屋|バー/.test(text));
   if (type === TYPE.onsen) return /温泉/.test(text) && !/足湯/.test(text);
   if (type === TYPE.footbath) return /足湯/.test(text);
   if (type === TYPE.park) return /公園|自然|湖畔|散歩/.test(text);

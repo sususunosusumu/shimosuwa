@@ -4,7 +4,7 @@ let P=[],B=[],A=[],W=[],seq=0,pick=null,pt={s:null,g:null},mk={s:null,g:null},ro
 const map=L.map('map').setView([36.075,138.083],14);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
 
-const D={snack:['🍰 おやつ',30],lunch:['🍽️ 昼食',50],landmark:['⛩️ 観光',40],onsen:['♨️ 温泉',50],cafe:['☕ カフェ',40],park:['🌳 公園・散歩',40],rest:['🪑 休憩',20],free:['⏳ 自由時間',30]};
+const D={snack:['🍰 おやつ',30],lunch:['🍽️ 昼食',50],landmark:['⛩️ 観光',40],onsen:['♨️ 温泉',50],footbath:['🦶 足湯',25],cafe:['☕ カフェ',40],park:['🌳 公園・散歩',40],rest:['🪑 休憩',20],free:['⏳ 自由時間',30]};
 const MAP_TYPES={bus:{label:'バス停',color:'#2563eb'},toilet:{label:'トイレ設備',color:'#dc2626'},shop:{label:'店舗・飲食',color:'#16a34a'},landmark:{label:'ランドマーク',color:'#f59e0b'}};
 const mapFilter={bus:true,toilet:true,shop:true,landmark:true};
 const placeLayer=L.layerGroup().addTo(map),busLayer=L.layerGroup().addTo(map);
@@ -17,7 +17,7 @@ map.on('click',e=>{if(pick){setPoint(pick,{name:'地図で選択',lat:e.latlng.l
 
 function text(p){return [p['種別'],p['カテゴリ'],p['サブカテゴリ'],p['体験・できること'],p['料理ジャンル'],p['提供メニュータグ']].join(' ')}
 function yn(p,name){return PlaceData.truthy(PlaceData.effective(p,name))}
-function match(p,t){const c=text(p);if(t==='snack')return yn(p,'おやつ向き')||/カフェ|喫茶|ベーカリー|パン|菓子|ケーキ|軽食/.test(c);if(t==='lunch')return yn(p,'昼食向き')||(PlaceData.isFoodType?PlaceData.isFoodType(p):/^(飲食店|ラーメン系|焼肉|その他飲食|軽食)$/.test(String(p['種別']||'')));if(t==='cafe')return /カフェ|喫茶/.test(c);if(t==='onsen')return /温泉|足湯/.test(c);if(t==='park')return /公園|自然|湖畔|散歩/.test(c);if(t==='rest')return yn(p,'休憩向き')||/休憩|公園|カフェ|温泉/.test(c);if(t==='landmark'){if(yn(p,'観光向き'))return true;if(PlaceData.no(PlaceData.effective(p,'観光向き')))return false;return /神社|寺院|史跡|博物館|美術館|景勝|公園|温泉|文化|自然|観光/.test(c)&&!/コンビニ|スーパー|行政|医療|公衆トイレ|駐車場|レンタサイクル|生活サービス/.test(c)}return false}
+function match(p,t){const c=text(p);if(t==='snack')return yn(p,'おやつ向き')||/カフェ|喫茶|ベーカリー|パン|菓子|ケーキ|軽食/.test(c);if(t==='lunch')return yn(p,'昼食向き')||(PlaceData.isFoodType?PlaceData.isFoodType(p):/^(飲食店|ラーメン系|焼肉|その他飲食|軽食)$/.test(String(p['種別']||'')));if(t==='cafe')return /カフェ|喫茶/.test(c);if(t==='onsen')return /温泉/.test(c)&&!/足湯/.test(c);if(t==='footbath')return /足湯/.test(c);if(t==='park')return /公園|自然|湖畔|散歩/.test(c);if(t==='rest')return yn(p,'休憩向き')||/休憩|公園|カフェ|温泉/.test(c);if(t==='landmark'){if(yn(p,'観光向き'))return true;if(PlaceData.no(PlaceData.effective(p,'観光向き')))return false;return /神社|寺院|史跡|博物館|美術館|景勝|公園|温泉|文化|自然|観光/.test(c)&&!/コンビニ|スーパー|行政|医療|公衆トイレ|駐車場|レンタサイクル|生活サービス/.test(c)}return false}
 function autoAllowed(p,explicit=false){if(String(p['削除予定']||'').toLowerCase()==='yes')return false;const lv=PlaceData.autoLevel(p);if(explicit)return true;if(lv==='hidden')return false;if(lv==='conditional'&&!$('allowConditional').checked)return false;return true}
 function candidateBase(t){return P.filter(p=>match(p,t)&&autoAllowed(p,false))}
 function addWish(t,o={}){W.push({id:++seq,t,d:o.d||D[t][1],time:o.time||'',pid:o.pid||''});renderWishes()}

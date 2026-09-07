@@ -69,7 +69,7 @@ function applyLocalMaintenance(rows){
       out=out.map(p=>({...p,...(edits[keyOf(p)]||{})}));
     }
   }catch(e){}
-  return out.map(hydrateStructuredSchedule);
+  return out.map(p=>hydrateStructuredSchedule(normalizePrimaryType(p)));
 }
 
 function normalizePrimaryType(p){

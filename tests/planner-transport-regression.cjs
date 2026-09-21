@@ -1,0 +1,21 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const els={};const defaults={st:'09:00',et:'16:00',wd:'月',policy:'recommended'};
+const chain=new Proxy(function(){},{get:(_,k)=>k==='then'?undefined:chain,apply:()=>chain});
+const ctx={console,Map,Set,Date,Math,URLSearchParams,setTimeout,location:{search:'',href:'test'},document:{readyState:'loading',querySelector(){return true},addEventListener(){},getElementById(id){return els[id]??={value:defaults[id]||'',checked:false,innerHTML:'',textContent:''}}},L:chain,localStorage:{getItem(){return null}},fetch:async path=>({ok:true,text:async()=>fs.readFileSync(path.split('?')[0],'utf8')})};ctx.window=ctx;vm.createContext(ctx);
+vm.runInContext(fs.readFileSync('place-data.js','utf8'),ctx);
+vm.runInContext(fs.readFileSync('planner-app.js','utf8').replace(/init\(\);\s*$/,''),ctx);
+let v8=fs.readFileSync('planner-v8.js','utf8');v8=v8.replace("if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();",'window.test={plan8,connection,choicesFor,openVisit,previewMove,setBusMove:fn=>busMove=fn};render=(items,end,warns,pts,done,autoCount)=>{window.result={items,end,warns,done,autoCount}};');vm.runInContext(v8,ctx);
+(async()=>{
+ ctx.TransportPlanner={mode:'walk',modes:['walk','bus']};
+ ctx.test.setBusMove(async(a,b,start)=>({kind:'bus',finish:start+20}));
+ let move=await ctx.test.previewMove({lat:36,lng:138},{lat:36.001,lng:138},540);assert.strictEqual(move.mode,'walk');
+ ctx.test.setBusMove(async(a,b,start)=>({kind:'bus',finish:start+1}));
+ move=await ctx.test.previewMove({lat:36,lng:138},{lat:36.001,lng:138},540);assert.strictEqual(move.kind,'bus');
+ ctx.TransportPlanner.modes=['walk'];move=await ctx.test.previewMove({lat:36,lng:138},{lat:36.1,lng:138},540);assert.strictEqual(move,null);
+ ctx.TransportPlanner.modes=['walk','bus'];move=await ctx.test.previewMove({lat:36,lng:138},{lat:36.1,lng:138},540);assert.strictEqual(move.kind,'bus');
+ ctx.TransportPlanner.modes=['bike'];move=await ctx.test.previewMove({lat:36,lng:138},{lat:36.01,lng:138},540);assert.strictEqual(move.mode,'bike');
+ ctx.TransportPlanner.modes=['car'];move=await ctx.test.previewMove({lat:36,lng:138},{lat:36.1,lng:138},540);assert.strictEqual(move.mode,'car');
+ ctx.test.setBusMove(async()=>null);ctx.TransportPlanner.modes=['walk','bike','bus'];move=await ctx.test.previewMove({lat:36,lng:138},{lat:36.01,lng:138},540);assert.strictEqual(move.mode,'bike');
+ ctx.TransportPlanner.modes=['walk','car'];move=await ctx.test.previewMove({lat:36,lng:138},{lat:36.0001,lng:138},540);assert.strictEqual(move.mode,'walk');
+ console.log('PASS: compare walking and bus; enforce walking limit; exclude unselected bus');
+})().catch(e=>{console.error(e);process.exitCode=1});

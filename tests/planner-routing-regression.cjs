@@ -9,7 +9,7 @@ let v8=fs.readFileSync('planner-v8.js','utf8');v8=v8.replace("if(document.readyS
  const data=await ctx.PlaceData.loadAll();ctx.data=data.places;
  vm.runInContext(`P=data;pt.s=(()=>{const p=P.find(p=>p['名称'].includes('ビストロ・サ'));return {name:p['名称'],lat:PlaceData.lat(p),lng:PlaceData.lng(p)}})();pt.g=(()=>{const p=P.find(p=>p['名称']==='下諏訪駅');return {name:p['名称'],lat:PlaceData.lat(p),lng:PlaceData.lng(p)}})();W=['park','lunch','dinner','alcohol','landmark','onsen'].map((t,i)=>({id:i+1,t,d:'',pref:''}));`,ctx);
  const t=Date.now();await ctx.test.plan8();console.log('ms',Date.now()-t);
- assert(ctx.result.done===4);assert(!ctx.result.items.some(x=>x.title==='GOAL周辺で自由時間'));assert(ctx.result.items.some(x=>x.meta.includes('旅行時間の外')));
+ assert(ctx.result.done>=4);assert(!ctx.result.items.some(x=>x.title==='GOAL周辺で自由時間'));assert(!ctx.result.items.some(x=>x.meta.includes('旅行時間の外')));
  assert(ctx.result.items.filter(x=>x.type==='travel'&&x.title.includes('徒歩')).every(x=>x.to-x.from<=10));assert(ctx.result.items.at(-1).meta.startsWith('GOAL'));assert(ctx.result.items.at(-1).to<=960);
  for(const day of ['火','土','日']){els.wd.value=day;await ctx.test.plan8();assert(ctx.result.items.filter(x=>x.type==='travel'&&x.title.includes('徒歩')).every(x=>x.to-x.from<=10));assert(ctx.result.items.at(-1).to<=960);}
  vm.runInContext("W=[{id:1,t:'free',d:30}];",ctx);await ctx.test.plan8();assert(ctx.result.done===1);assert(ctx.result.items.some(x=>x.title==='自由時間'&&x.to-x.from===30));

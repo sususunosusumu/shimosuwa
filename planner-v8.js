@@ -18,7 +18,7 @@ const PREF={
 function prefMatch(p,w){
   const pref=String(w.pref||'');
   if(!pref)return true;
-  const txt=[p['名称'],p['種別'],p['カテゴリ'],p['サブカテゴリ'],p['体験・できること'],p['料理ジャンル'],p['提供メニュータグ']].filter(Boolean).join(' ');
+  const txt=[p['名称'],p['種別'],p['カテゴリ1'],p['カテゴリ'],p['サブカテゴリ'],p['体験・できること'],p['料理ジャンル'],p['提供メニュータグ']].filter(Boolean).join(' ');
   const tagPrefs=['日本酒','ワイン','クラフトビール','ビール','焼酎','カクテル','うなぎ','肉','とんかつ','ステーキ','寿司','そば','洋食','中華','定食','カフェ','スイーツ','テイクアウト','地元料理'];
   if(tagPrefs.includes(pref))return (PlaceData.hasFoodTag&&PlaceData.hasFoodTag(p,pref))||txt.includes(pref);
   if(pref==='ラーメン')return /ラーメン|つけめん|つけ麺/.test(txt);
@@ -62,7 +62,106 @@ function urgency(win,now){if(win.target===null)return 0;if(now>win.max)return 10
 async function nextChoice(rem,wins,cur,now,end,used,random){const options=[];for(const w of rem){const win=wins.get(w.id);if(win.target!==null&&now<win.min-50)continue;const c=await candidate(w,win,cur,now,end,used,rem.length===1,random);if(c)options.push({w,c,s:urgency(win,now)+c.s})}if(!options.length){for(const w of rem){const c=await candidate(w,wins.get(w.id),cur,now,end,used,rem.length===1,random);if(c)options.push({w,c,s:c.s})}}options.sort((a,b)=>b.s-a.s);return options[0]||null}
 async function filler(cur,now,end,used,target=null){let best=null;for(const t of ['landmark','park','lightmeal','rest']){for(const p of candidateBase(t).filter(PlaceData.hasCoord).slice(0,30)){const k=PlaceData.keyOf(p);if(used.has(k)||!timeOK(p,now))continue;const z=Q(p),mv=await previewMove(cur,z,now);if(!mv)continue;const d=Math.min(30,stay({t,d:'',pid:''},p)),finish=mv.finish+d;if(finish>end-10)continue;if(target&&finish>target-5)continue;const s=scorePlace(p,cur,pt.g)-(mv.finish-now);if(!best||s>best.s)best={p,z,mv,d,finish,s,t}}}return best}
 function render(items,end,warns,pts,done,autoCount){const travel=items.filter(x=>['travel','bus'].includes(x.type)).reduce((a,x)=>a+x.to-x.from,0);$('ps').textContent=warns.length?'要確認':'成立';$('summary').innerHTML=`<span class="pill">${H($('wd').value)}曜日</span><span class="pill">${hm(tm($('st').value))} → ${hm(end)}</span><span class="pill">${modeLabel()}</span><span class="pill">徒歩上限 ${CFG.walkMax}分</span>${mode()==='bus'?`<span class="pill">バス待ち ≤${CFG.busWaitMax}分</span>`:''}<span class="pill">希望 ${W.length}件 / 実行 ${done}件</span>${autoCount?`<span class="pill">✨ 自動追加 ${autoCount}件</span>`:''}`;$('result').innerHTML=items.map(x=>`<div class="card ${(x.type==='travel'||x.type==='bus')?'travel':''} ${x.type==='bus'?'bus-travel':''} ${x.type==='warn'?'warn':''} ${x.auto?'auto-added':''}" ${x.wid?`data-wid="${x.wid}"`:''}><div class="time">${x.from===x.to?hm(x.from):hm(x.from)+'–'+hm(x.to)}</div><div><div class="name">${H(x.title)}</div><div class="meta">${H(x.meta||'')}</div>${x.point?`<span class="star">★${PlaceData.recommendation(x.point)}</span> ${nearBus({lat:PlaceData.lat(x.point),lng:PlaceData.lng(x.point)})}`:''}${x.wid?`<div class="plan-edit"><button class="alt" onclick="PlannerV8.shift(${x.wid},'${hm(x.from)}',-30)">← 早め</button><button class="alt" onclick="PlannerV8.shift(${x.wid},'${hm(x.from)}',30)">遅め →</button><button class="alt" onclick="PlannerV8.band(${x.wid})">時間帯変更</button><button class="alt" onclick="PlannerV8.place(${x.wid})">行き先変更</button></div>`:''}</div></div>`).join('');if(route)map.removeLayer(route);if(pts.length>1){route=L.polyline(pts.map(x=>[x.lat,x.lng]),{weight:4,opacity:.65}).addTo(map);map.fitBounds(route.getBounds().pad(.15))}}
-async function plan8(random=false){if(ST.running)return;if(!pt.s||!pt.g)return alert('STARTとGOALを設定してください');ST.running=true;ST.lastRandom=random;try{const start=tm($('st').value),end=tm($('et').value);if(end<=start)return alert('終了時刻は開始時刻より後にしてください');const wins=makeWindows(start,end);let now=start,cur={...pt.s},rem=W.slice(),used=new Set(),items=[{type:'place',from:now,to:now,title:cur.name,meta:'START'}],pts=[{...cur}],warns=[],done=0,autoCount=0,loops=0;while(rem.length&&loops++<30){const nx=await nextChoice(rem,wins,cur,now,end,used,random);if(!nx){for(const w of rem){const wi=wins.get(w.id);items.push({type:'warn',from:now,to:now,title:`${LAB[w.t]||w.t}：組み込めません`,meta:`${wi.label}・徒歩上限${CFG.walkMax}分${mode()==='bus'?`・バス待ち${CFG.busWaitMax}分以内`:''}で候補が見つかりません`});warns.push(w.t)}rem=[];break}const {w,c}=nx,wi=wins.get(w.id);if(c.wait>=20){const f=await filler(cur,now,Math.min(end,c.begin),used,c.begin);if(f){now=appendMove(items,cur,f.z,now,f.mv);cur=f.z;pts.push({...cur});items.push({type:'act',from:now,to:now+f.d,title:f.p['名称'],meta:`✨ ${wi.label}までのおすすめ追加 / 滞在${f.d}分`,point:f.p,auto:true});now+=f.d;used.add(PlaceData.keyOf(f.p));autoCount++;continue}}const fresh=await candidate(w,wi,cur,now,end,used,rem.length===1,random);if(!fresh){items.push({type:'warn',from:now,to:now,title:`${LAB[w.t]||w.t}：現在地から組み込めません`,meta:'直前の予定との組み合わせを変更してください'});warns.push(w.t);rem.splice(rem.indexOf(w),1);continue}rem.splice(rem.indexOf(w),1);now=appendMove(items,cur,fresh.z,now,fresh.mv);cur=fresh.z;pts.push({...cur});if(now<fresh.begin){const gap=fresh.begin-now;if(gap>15)items.push({type:'free',from:now,to:fresh.begin,title:'近くを散策・休憩',meta:`${wi.label}までの調整`});else items.push({type:'wait',from:now,to:fresh.begin,title:'少し待つ',meta:`${wi.label}まで ${gap}分`});now=fresh.begin}items.push({type:'act',from:now,to:now+fresh.d,title:fresh.p['名称'],meta:`${LAB[w.t]||w.t} / ${wi.label} / ${fresh.p['カテゴリ']||fresh.p['種別']||''} / 滞在${fresh.d}分`,point:fresh.p,wid:w.id});now+=fresh.d;used.add(PlaceData.keyOf(fresh.p));done++}let guard=0;while(guard++<5){const g=await previewMove(cur,pt.g,now);if(g&&g.finish<=end){if(end-g.finish>45){const f=await filler(cur,now,end,used);if(f){now=appendMove(items,cur,f.z,now,f.mv);cur=f.z;pts.push({...cur});items.push({type:'act',from:now,to:now+f.d,title:f.p['名称'],meta:`✨ GOALまでの空き時間におすすめ追加 / 滞在${f.d}分`,point:f.p,auto:true});now+=f.d;used.add(PlaceData.keyOf(f.p));autoCount++;continue}}now=appendMove(items,cur,pt.g,now,g);cur={...pt.g};pts.push({...cur});break}const f=await filler(cur,now,end,used);if(!f)break;now=appendMove(items,cur,f.z,now,f.mv);cur=f.z;pts.push({...cur});items.push({type:'act',from:now,to:now+Math.min(20,f.d),title:f.p['名称'],meta:'✨ 移動をつなぐ短い立ち寄り',point:f.p,auto:true});now+=Math.min(20,f.d);used.add(PlaceData.keyOf(f.p));autoCount++}if(cur.name!==pt.g.name){const g=await previewMove(cur,pt.g,now);if(g&&g.finish<=end){now=appendMove(items,cur,pt.g,now,g);cur={...pt.g};pts.push({...cur})}else{items.push({type:'warn',from:now,to:now,title:'GOALまで移動条件を満たせません',meta:`徒歩上限${CFG.walkMax}分などを少し緩めてください`});warns.push('goal')}}if(now<end){const gap=end-now;items.push({type:gap<=20?'wait':'free',from:now,to:end,title:gap<=20?'GOAL前の余裕':'GOAL周辺で自由時間',meta:`${gap}分`});now=end}items.push({type:'place',from:end,to:end,title:pt.g.name,meta:'GOAL'});render(items,end,warns,pts,done,autoCount)}finally{ST.running=false}}
+// Search several complete alternatives before choosing a route.
+function suitable(p,t){
+  const food=PlaceData.isFoodType?PlaceData.isFoodType(p):/飲食|カフェ|ラーメン|焼肉/.test(p['種別']||'');
+  if(['landmark','park','footbath'].includes(t)&&food)return false;
+  return match(p,t);
+}
+function openVisit(p,begin,d,latest){
+  for(let t=begin;t<=latest;t++){let open=true;for(let m=t;m<t+d;m++){if(!timeOK(p,m)){open=false;break}}if(open)return t;}
+  return null;
+}
+async function connection(from,to,now,end,used){
+  const direct=await previewMove(from,to,now);
+  if(direct&&direct.finish<=end)return {steps:[{from,to,at:now,mv:direct}],finish:direct.finish,used:[]};
+  let frontier=[{cur:from,now,steps:[],used:[]}];
+  const pool=P.filter(p=>PlaceData.hasCoord(p)&&autoAllowed(p,false)&&['landmark','park','rest','footbath'].some(t=>suitable(p,t)));
+  for(let depth=0;depth<3;depth++){
+    const next=[];
+    for(const n of frontier){
+      for(const p of pool){
+        const id=PlaceData.keyOf(p),z=Q(p);
+        if(used.has(id)||n.used.includes(id)||dist(z,to)<.001)continue;
+        const mv=await previewMove(n.cur,z,n.now);if(!mv)continue;
+        const d=Math.max(10,Math.min(20,stay({t:'rest',d:''},p)));
+        if(mv.finish+d>end||!timeOK(p,mv.finish)||!timeOK(p,mv.finish+d-1))continue;
+        const steps=n.steps.concat({from:n.cur,to:z,at:n.now,mv,p,d});
+        const finish=mv.finish+d,ids=n.used.concat(id),last=await previewMove(z,to,finish);
+        if(last&&last.finish<=end)return {steps:steps.concat({from:z,to,at:finish,mv:last}),finish:last.finish,used:ids};
+        next.push({cur:z,now:finish,steps,used:ids,rank:finish+walk(z,to)});
+      }
+    }
+    frontier=next.sort((a,b)=>a.rank-b.rank).slice(0,6);
+  }
+  return null;
+}
+function appendConnection(state,route){
+  for(const step of route.steps){
+    state.now=appendMove(state.items,step.from,step.to,step.at,step.mv);
+    state.cur=step.to;state.pts.push({...step.to});
+    if(step.p){state.items.push({type:'act',from:state.now,to:state.now+step.d,title:step.p['名称'],meta:'✨ 移動をつなぐ立ち寄り / 滞在'+step.d+'分',point:step.p,auto:true});state.now+=step.d;state.used.add(PlaceData.keyOf(step.p));state.autoCount++;}
+  }
+}
+function copyState(n){return {...n,items:n.items.slice(),pts:n.pts.slice(),used:new Set(n.used),remaining:n.remaining.slice()};}
+async function choicesFor(w,n,win,end){
+  if(win.min>win.max)return [];
+  const pool=(w.pid?P.filter(p=>PlaceData.keyOf(p)===w.pid):candidateBase(w.t).filter(p=>prefMatch(p,w)&&suitable(p,w.t))).filter(PlaceData.hasCoord).filter(p=>!n.used.has(PlaceData.keyOf(p))).sort((a,b)=>scorePlace(b,n.cur,pt.g)-scorePlace(a,n.cur,pt.g));
+  const choices=[];
+  for(const p of pool){
+    const z=Q(p),d=stay(w,p),route=await connection(n.cur,z,n.now,Math.min(end-d,win.max),new Set([...n.used,PlaceData.keyOf(p)]));if(!route)continue;
+    const begin=openVisit(p,Math.max(route.finish,win.min),d,Math.min(win.max,end-d));if(begin===null)continue;
+    const goal=await connection(z,pt.g,begin+d,end,new Set([...n.used,...route.used,PlaceData.keyOf(p)]));if(!goal)continue;
+    choices.push({p,z,d,route,begin,score:scorePlace(p,n.cur,pt.g)-(begin-route.finish)*2});
+  }
+  return choices.sort((a,b)=>b.score-a.score).slice(0,3);
+}
+async function plan8(random=false){
+  if(ST.running)return;if(!pt.s||!pt.g)return alert('STARTとGOALを設定してください');
+  ST.running=true;ST.lastRandom=random;
+  try{
+    const start=tm($('st').value),end=tm($('et').value);if(end<=start)return alert('終了時刻は開始時刻より後にしてください');
+    const wins=makeWindows(start,end),initial={now:start,cur:{...pt.s},remaining:W.slice(),used:new Set(),items:[{type:'place',from:start,to:start,title:pt.s.name,meta:'START'}],pts:[{...pt.s}],done:0,autoCount:0,score:0};
+    let beam=[initial],best=initial;
+    for(let depth=0;depth<W.length;depth++){
+      const next=[];
+      for(const n of beam)for(const w of n.remaining){
+        if(w.t==='free'){
+          const d=Math.max(10,Number(w.d)||30),goal=await connection(n.cur,pt.g,n.now+d,end,n.used);if(!goal)continue;
+          const x=copyState(n);x.items.push({type:'free',from:x.now,to:x.now+d,title:'自由時間',meta:'指定した自由時間',wid:w.id});x.now+=d;x.done++;x.remaining=x.remaining.filter(v=>v.id!==w.id);next.push(x);continue;
+        }
+        for(const c of await choicesFor(w,n,wins.get(w.id),end)){
+          const x=copyState(n);appendConnection(x,c.route);
+          if(x.now<c.begin)x.items.push({type:'wait',from:x.now,to:c.begin,title:'少し待つ',meta:wins.get(w.id).label+' / 営業開始まで'});
+          x.items.push({type:'act',from:c.begin,to:c.begin+c.d,title:c.p['名称'],meta:(LAB[w.t]||w.t)+' / '+wins.get(w.id).label+' / 滞在'+c.d+'分',point:c.p,wid:w.id});
+          x.now=c.begin+c.d;x.cur=c.z;x.used.add(PlaceData.keyOf(c.p));x.done++;x.remaining=x.remaining.filter(v=>v.id!==w.id);x.score+=c.score+(random?Math.random()*15:0);next.push(x);
+        }
+      }
+      if(!next.length)break;
+      next.sort((a,b)=>a.now-b.now||b.score-a.score);
+      const unique=new Map();for(const n of next){const key=n.remaining.map(w=>w.id).join(',')+'|'+n.cur.name;if(!unique.has(key))unique.set(key,n);}
+      beam=[...unique.values()].slice(0,12);best=beam.slice().sort((a,b)=>b.score-a.score)[0];
+      await new Promise(resolve=>setTimeout(resolve,0));
+    }
+    const n=best,warns=[];
+    for(const w of n.remaining){const wi=wins.get(w.id),outside=wi.min>wi.max;warns.push(w.t);n.items.push({type:'warn',from:n.now,to:n.now,title:(LAB[w.t]||w.t)+'：条件の調整が必要',meta:outside?wi.label+'は指定した旅行時間の外です。終了時刻または希望の時間帯を変更してください。':'行き先の変更・途中の立ち寄りも検討しましたが、営業時間・滞在時間・移動上限を満たす組み合わせが見つかりません。'});}
+    // Fill remaining time only with visits that still permit arrival at GOAL.
+    for(let count=0;count<16;count++){
+      const g=await connection(n.cur,pt.g,n.now,end,n.used);if(!g||end-g.finish<=45)break;
+      let pick=null;
+      for(const t of ['landmark','park','footbath','rest']){
+        for(const c of await choicesFor({t,d:'',pref:''},n,{min:n.now,max:end,target:null},end))if(c.begin===c.route.finish&&(!pick||c.score>pick.score))pick=c;
+      }
+      if(!pick)break;appendConnection(n,pick.route);n.items.push({type:'act',from:n.now,to:n.now+pick.d,title:pick.p['名称'],meta:'✨ 空き時間のおすすめ / 滞在'+pick.d+'分',point:pick.p,auto:true});n.now+=pick.d;n.cur=pick.z;n.used.add(PlaceData.keyOf(pick.p));n.autoCount++;
+    }
+    const goal=await connection(n.cur,pt.g,n.now,end,n.used);
+    if(goal){appendConnection(n,goal);n.items.push({type:'place',from:n.now,to:n.now,title:pt.g.name,meta:'GOAL'+(end-n.now>20?' / 指定終了まで'+(end-n.now)+'分の余裕。追加できる立ち寄りがないため早めに到着します。':'')});}
+    else{warns.push('goal');n.items.push({type:'warn',from:n.now,to:n.now,title:'GOALへの移動条件を満たせません',meta:'移動手段・徒歩上限・終了時刻を変更してください。'});}
+    ST.lastInput={start:{...pt.s},goal:{...pt.g},startTime:$('st').value,endTime:$('et').value,day:$('wd').value,mode:mode(),walkMax:CFG.walkMax,busWaitMax:CFG.busWaitMax,policy:$('policy').value,rain:$('rain').checked,senior:$('senior').checked,allowConditional:$('allowConditional').checked,wishes:JSON.parse(JSON.stringify(W)),random};
+    render(n.items,end,warns,n.pts,n.done,n.autoCount);
+  }finally{ST.running=false}
+}
+
 function wish(id){return W.find(w=>w.id===+id)}
 function renderChoices(){
   $('wc').textContent=W.length+'件';
@@ -80,7 +179,10 @@ function renderChoices(){
   }).join('');
 }
 function modal(title,body){let d=$('v8modal');if(!d){d=document.createElement('div');d.id='v8modal';d.className='v8-modal';document.body.appendChild(d)}d.innerHTML=`<div class="v8-dialog"><div class="head"><b>${H(title)}</b><button class="alt" onclick="document.getElementById('v8modal').classList.remove('show')">×</button></div>${body}</div>`;d.classList.add('show')}
-window.PlannerV8={shift(id,time,delta){const w=wish(id);if(!w)return;w._manualTime=hm(tm(time)+delta);w._band='auto';plan8(ST.lastRandom)},band(id){const w=wish(id);if(!w)return;modal('時間帯を変更',`<div class="v8-band">${Object.entries(BAND).map(([k,v])=>`<button onclick="PlannerV8.chooseBand(${id},'${k}')">${v}</button>`).join('')}</div><p class="sm">通常は、朝食7:00〜10:00、昼食11:30〜13:30、軽食14:00〜16:30、夕食17:00以降を基準にします。</p>`)},chooseBand(id,b){const w=wish(id);if(w){w._band=b;w._manualTime=''}$('v8modal').classList.remove('show');plan8(ST.lastRandom)},place(id){const w=wish(id);if(!w)return;const ps=P.filter(p=>match(p,w.t)&&PlaceData.hasCoord(p));modal('行き先を変更',`<select id="v8place"><option value="">場所もおまかせ</option>${ps.map(p=>`<option value="${H(PlaceData.keyOf(p))}" ${w.pid===PlaceData.keyOf(p)?'selected':''}>${H(p['名称'])} ★${PlaceData.recommendation(p)}</option>`).join('')}</select><div style="margin-top:10px"><button onclick="PlannerV8.choosePlace(${id})">変更する</button></div>`)},choosePlace(id){const w=wish(id);if(w)w.pid=$('v8place').value;$('v8modal').classList.remove('show');renderChoices();plan8(ST.lastRandom)}};
+window.PlannerV8={async feedback(){
+  const report='下諏訪 時間プランナー フィードバック\n'+JSON.stringify({version:'20260921-route-search',url:location.href,generatedAt:new Date().toISOString(),inputAtLastPlan:ST.lastInput||null,currentInput:{start:pt.s,goal:pt.g,wishes:W,startTime:$('st').value,endTime:$('et').value,day:$('wd').value,mode:mode(),walkMax:CFG.walkMax},summary:$('summary').innerText,result:$('result').innerText},null,2);
+  try{await navigator.clipboard.writeText(report);$('feedbackStatus').textContent='コピーしました。このチャットに貼り付けてください。'}catch(e){modal('フィードバックをコピー','<p>下の内容を選択してコピーし、このチャットに貼り付けてください。</p><textarea id="feedbackText" style="width:100%;height:300px"></textarea>');$('feedbackText').value=report;$('feedbackText').select()}
+},shift(id,time,delta){const w=wish(id);if(!w)return;w._manualTime=hm(tm(time)+delta);w._band='auto';plan8(ST.lastRandom)},band(id){const w=wish(id);if(!w)return;modal('時間帯を変更',`<div class="v8-band">${Object.entries(BAND).map(([k,v])=>`<button onclick="PlannerV8.chooseBand(${id},'${k}')">${v}</button>`).join('')}</div><p class="sm">通常は、朝食7:00〜10:00、昼食11:30〜13:30、軽食14:00〜16:30、夕食17:00以降を基準にします。</p>`)},chooseBand(id,b){const w=wish(id);if(w){w._band=b;w._manualTime=''}$('v8modal').classList.remove('show');plan8(ST.lastRandom)},place(id){const w=wish(id);if(!w)return;const ps=P.filter(p=>match(p,w.t)&&PlaceData.hasCoord(p));modal('行き先を変更',`<select id="v8place"><option value="">場所もおまかせ</option>${ps.map(p=>`<option value="${H(PlaceData.keyOf(p))}" ${w.pid===PlaceData.keyOf(p)?'selected':''}>${H(p['名称'])} ★${PlaceData.recommendation(p)}</option>`).join('')}</select><div style="margin-top:10px"><button onclick="PlannerV8.choosePlace(${id})">変更する</button></div>`)},choosePlace(id){const w=wish(id);if(w)w.pid=$('v8place').value;$('v8modal').classList.remove('show');renderChoices();plan8(ST.lastRandom)}};
 function boot(){addWish=function(t,o={}){W.push({id:++seq,t,d:o.d??'',time:'',pid:o.pid||'',pref:o.pref||'',_band:'auto',_manualTime:''});renderChoices()};changeWish=function(id,k,v){const w=wish(id);if(!w)return;w[k]=v;if(k==='t'){w.pid='';w.pref='';w._band='auto';w._manualTime=''}renderChoices()};delWish=function(id){W=W.filter(w=>w.id!==id);renderChoices()};sample=function(){W=[];seq=0;addWish('breakfast');addWish('landmark');addWish('lunch');addWish('onsen');addWish('lightmeal')};renderWishes=renderChoices;plan=plan8;window.plan=plan8;const chooser=$('v7walk');if(chooser)chooser.remove();const d=document.createElement('div');d.className='v8-walk';d.innerHTML='<label>徒歩は1回あたり</label><select id="v8walk"><option>5</option><option selected>10</option><option>15</option><option>20</option><option>30</option></select><span>分以内</span><span class="sm">バス停まで／降車後も同じ上限。バス待ちは10分以内。</span>';const tc=$('transportChooser');(tc||$('summary')?.parentElement)?.insertAdjacentElement('afterend',d);$('v8walk').onchange=e=>{CFG.walkMax=+e.target.value;if($('result').querySelector('.card'))plan8(ST.lastRandom)};const st=document.createElement('style');st.textContent=`.v8-choice{display:grid;grid-template-columns:minmax(150px,.9fr) minmax(180px,1.2fr) 70px auto;gap:7px;align-items:center;border-bottom:1px solid #e5e9eb;padding:7px 4px;background:#fff}.v8-choice.compact select{height:38px}.v8-choice.compact button{height:38px;padding:6px 10px}.v8-candidate-count{font-size:12px;color:#64748b;text-align:center;white-space:nowrap}.plan-edit{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.plan-edit button{font-size:11px;padding:5px 8px}.v8-walk{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin:8px 0 12px;padding:8px 10px;border:1px solid #dfe5e7;border-radius:10px;background:#fafbfb}.v8-walk label{margin:0}.v8-walk select{width:auto}.v8-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.32);z-index:99999;padding:20px;align-items:center;justify-content:center}.v8-modal.show{display:flex}.v8-dialog{width:min(560px,96vw);max-height:80vh;overflow:auto;background:#fff;border-radius:16px;padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.22)}.v8-band{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.v8-band button{padding:12px}@media(max-width:760px){.v8-choice{grid-template-columns:1fr 1fr auto}.v8-candidate-count{display:none}.v8-choice button{height:38px}.v8-band{grid-template-columns:1fr}}`;document.head.appendChild(st);const v=document.querySelector('.ver');if(v)v.textContent='planner rebuild 1.8';renderChoices()}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();

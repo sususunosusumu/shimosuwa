@@ -81,6 +81,7 @@ function suitable(p,t){
 function openVisit(p,begin,d,latest,target=null){
   const first=Math.ceil(begin),last=Math.floor(latest),duration=Math.ceil(d);
   if(last<first)return null;
+  if(target===null){let run=0;for(let t=first;t<last+duration;t++){run=timeOK(p,t)?run+1:0;if(run>=duration)return t-duration+1}return null}
   const closed=[0];
   for(let t=first;t<last+duration;t++)closed.push(closed.at(-1)+(timeOK(p,t)?0:1));
   let best=null;
@@ -98,20 +99,21 @@ async function connection(from,to,now,end,used){
   let frontier=[{cur:from,now,steps:[],used:[]}];
   const pool=P.filter(p=>PlaceData.hasCoord(p)&&autoAllowed(p,false)&&['landmark','park','rest','footbath'].some(t=>suitable(p,t)));
   for(let depth=0;depth<3;depth++){
-    const next=[];
+    const next=[];let bestRoute=null;
     for(const n of frontier){
       for(const p of pool){
         const id=PlaceData.keyOf(p),z=Q(p);
-        if(used.has(id)||n.used.includes(id)||dist(z,to)<.001)continue;
+        if(n.used.includes(id)||dist(z,to)<.001||dist(z,from)<.001)continue;
         const mv=await previewMove(n.cur,z,n.now);if(!mv)continue;
-        const d=Math.max(10,Math.min(20,stay({t:'rest',d:''},p)));
-        if(mv.finish+d>end||!timeOK(p,mv.finish)||!timeOK(p,mv.finish+d-1))continue;
-        const steps=n.steps.concat({from:n.cur,to:z,at:n.now,mv,p,d});
-        const finish=mv.finish+d,ids=n.used.concat(id),last=await previewMove(z,to,finish);
-        if(last&&last.finish<=end)return {steps:steps.concat({from:z,to,at:finish,mv:last}),finish:last.finish,used:ids};
+        const d=10; // Short rest to break a walking leg; not a full sightseeing visit.
+        const begin=openVisit(p,mv.finish,d,end-d);if(begin===null)continue;
+        const steps=n.steps.concat({from:n.cur,to:z,at:n.now,mv,p,d,begin});
+        const finish=begin+d,ids=n.used.concat(id),last=await previewMove(z,to,finish);
+        if(last&&last.finish<=end&&(!bestRoute||last.finish<bestRoute.finish))bestRoute={steps:steps.concat({from:z,to,at:finish,mv:last}),finish:last.finish,used:ids};
         next.push({cur:z,now:finish,steps,used:ids,rank:finish+walk(z,to)});
       }
     }
+    if(bestRoute)return bestRoute;
     frontier=next.sort((a,b)=>a.rank-b.rank).slice(0,6);
   }
   return null;
@@ -121,13 +123,14 @@ function appendConnection(state,route){
     state.now=appendMove(state.items,step.from,step.to,step.at,step.mv);
     state.cur=step.to;state.pts.push({...step.to});
     if(step.p){
+      if(step.begin>state.now){state.items.push({type:'wait',from:state.now,to:step.begin,title:'営業開始まで待つ',meta:step.p['名称']});state.now=step.begin}
       const fulfilled=state.remaining.find(w=>{
         if(!['park','landmark','onsen','footbath','rest'].includes(w.t)||!suitable(step.p,w.t)||!prefMatch(step.p,w)||w.pid&&w.pid!==PlaceData.keyOf(step.p))return false;
         const win=autoWindow(w,0,0,tm($('st').value),tm($('et').value));
         const required=w.d!==''&&+w.d>0?+w.d:nums(PlaceData.effective(step.p,'最短滞在時間_分'))[0]||stay(w,step.p);
         return state.now>=win.min&&state.now<=win.max&&step.d>=required;
       });
-      state.items.push({type:'act',from:state.now,to:state.now+step.d,title:step.p['名称'],meta:(fulfilled?LAB[fulfilled.t]:'✨ 移動をつなぐ立ち寄り')+' / 滞在'+step.d+'分',point:step.p,auto:!fulfilled,wid:fulfilled?.id});
+      state.items.push({type:'act',from:state.now,to:state.now+step.d,title:step.p['名称'],meta:(fulfilled?LAB[fulfilled.t]:'✨ 移動途中の短い休憩')+' / 滞在'+step.d+'分',point:step.p,auto:!fulfilled,wid:fulfilled?.id});
       state.now+=step.d;state.used.add(PlaceData.keyOf(step.p));
       if(fulfilled){state.done++;state.remaining=state.remaining.filter(w=>w.id!==fulfilled.id)}else state.autoCount++;
     }
@@ -143,22 +146,28 @@ async function choicesFor(w,n,win,end){
     const durations=w.d!==''&&+w.d>0?[recommended]:[...new Set([recommended,minimum>0?Math.min(recommended,minimum):recommended])];
     for(const d of durations){
     const route=await connection(n.cur,z,n.now,Math.min(end-d,win.max),new Set([...n.used,PlaceData.keyOf(p)]));if(!route)continue;
-    const earliestGoal=await connection(z,pt.g,route.finish+d,end,new Set([...n.used,...route.used,PlaceData.keyOf(p)]));if(!earliestGoal)continue;
-    const returnBudget=earliestGoal.finish-(route.finish+d);
+    // Validate onward travel after the visit can actually start, not at early arrival.
+    const probeBegin=openVisit(p,Math.max(route.finish,win.min),d,Math.min(win.max,end-d));if(probeBegin===null)continue;
+    const earliestGoal=await connection(z,pt.g,probeBegin+d,end,new Set([...n.used,...route.used,PlaceData.keyOf(p)]));if(!earliestGoal)continue;
+    const returnBudget=earliestGoal.finish-(probeBegin+d);
     const latest=Math.min(win.max,end-d-returnBudget);
     const automatic=!w._manualTime&&(!w._band||w._band==='auto');
     const target=automatic&&w.t==='lunch'?win.target:automatic&&w.t==='dinner'?latest:null;
-    const begin=openVisit(p,Math.max(route.finish,win.min),d,latest,target);if(begin===null)continue;
+    const starts=[openVisit(p,Math.max(route.finish,win.min),d,latest,target)];
+    if(automatic&&w.t==='lunch')starts.push(openVisit(p,Math.max(route.finish,win.min),d,latest));
+    for(const begin of new Set(starts)){if(begin===null)continue;
     const goal=await connection(z,pt.g,begin+d,end,new Set([...n.used,...route.used,PlaceData.keyOf(p)]));if(!goal)continue;
     choices.push({p,z,d,route,begin,score:scorePlace(p,n.cur,pt.g)-(begin-route.finish)*.3-(automatic&&w.t==='lunch'?Math.abs(begin-720)*5:0)+(automatic&&w.t==='dinner'?(begin-end)*2:0)-(recommended-d)*.1});
   }
   }
+  }
   return choices.sort((a,b)=>b.score-a.score).slice(0,6);
 }
+// Keep a feasible requested lunch even when optional activities score higher.
 function searchRank(n){
   const hasLunch=n.items.some(x=>x.wid&&W.find(w=>w.id===x.wid)?.t==='lunch');
   const missedLunch=n.remaining.some(w=>w.t==='lunch')&&n.now>13*60+30;
-  return n.done*10000+n.score-(n.now-tm($('st').value))*.3+(hasLunch?350:0)-(missedLunch?1200:0);
+  return n.done*10000+n.score-(n.now-tm($('st').value))*.3+(hasLunch?(W.length+1)*10000:0)-(missedLunch?1200:0);
 }
 async function plan8(random=false){
   if(ST.running){ST.replan=true;return}if(!pt.s||!pt.g)return alert('STARTとGOALを設定してください');
@@ -187,7 +196,10 @@ async function plan8(random=false){
       if(!next.length)break;
       next.sort((a,b)=>searchRank(b)-searchRank(a));
       const unique=new Map();for(const n of next){const key=n.remaining.map(w=>w.id).join(',')+'|'+n.cur.name+'|'+Math.floor(n.now/15);if(!unique.has(key))unique.set(key,n);}
-      beam=[...unique.values()].slice(0,48);const leader=beam.slice().sort((a,b)=>searchRank(b)-searchRank(a))[0];if(leader.done>best.done||leader.done===best.done&&searchRank(leader)>searchRank(best))best=leader;
+      const groups=new Map();for(const state of unique.values()){const key=state.remaining.map(w=>w.id).join(',');if(!groups.has(key))groups.set(key,[]);groups.get(key).push(state)}
+      for(const [key,group] of groups){const earliest=group.reduce((a,b)=>a.now<=b.now?a:b);groups.set(key,[group[0],...(earliest!==group[0]?[earliest]:[]),...group.filter(x=>x!==group[0]&&x!==earliest)])}
+      beam=[];for(let round=0;beam.length<48;round++){let added=false;for(const group of groups.values()){if(group[round]){beam.push(group[round]);added=true;if(beam.length===48)break}}if(!added)break}
+      const leader=beam.slice().sort((a,b)=>searchRank(b)-searchRank(a))[0];if(searchRank(leader)>searchRank(best))best=leader;
       await new Promise(resolve=>setTimeout(resolve,0));
     }
     const n=best,warns=[];
@@ -227,7 +239,7 @@ function renderChoices(){
 }
 function modal(title,body){let d=$('v8modal');if(!d){d=document.createElement('div');d.id='v8modal';d.className='v8-modal';document.body.appendChild(d)}d.innerHTML=`<div class="v8-dialog"><div class="head"><b>${H(title)}</b><button class="alt" onclick="document.getElementById('v8modal').classList.remove('show')">×</button></div>${body}</div>`;d.classList.add('show')}
 window.PlannerV8={async feedback(){
-  const report='下諏訪 時間プランナー フィードバック\n'+JSON.stringify({version:'20260921-mixed-transport',url:location.href,generatedAt:new Date().toISOString(),inputAtLastPlan:ST.lastInput||null,currentInput:{start:pt.s,goal:pt.g,wishes:W,startTime:$('st').value,endTime:$('et').value,day:$('wd').value,mode:mode(),modes:modes().slice(),walkMax:CFG.walkMax},summary:$('summary').innerText,result:$('result').innerText},null,2);
+  const report='下諏訪 時間プランナー フィードバック\n'+JSON.stringify({version:'20260922-lunch-priority',url:location.href,generatedAt:new Date().toISOString(),inputAtLastPlan:ST.lastInput||null,currentInput:{start:pt.s,goal:pt.g,wishes:W,startTime:$('st').value,endTime:$('et').value,day:$('wd').value,mode:mode(),modes:modes().slice(),walkMax:CFG.walkMax},summary:$('summary').innerText,result:$('result').innerText},null,2);
   try{await navigator.clipboard.writeText(report);$('feedbackStatus').textContent='コピーしました。このチャットに貼り付けてください。'}catch(e){modal('フィードバックをコピー','<p>下の内容を選択してコピーし、このチャットに貼り付けてください。</p><textarea id="feedbackText" style="width:100%;height:300px"></textarea>');$('feedbackText').value=report;$('feedbackText').select()}
 },shift(id,time,delta){const w=wish(id);if(!w)return;w._manualTime=hm(tm(time)+delta);w._band='auto';plan8(ST.lastRandom)},band(id){const w=wish(id);if(!w)return;modal('時間帯を変更',`<div class="v8-band">${Object.entries(BAND).map(([k,v])=>`<button onclick="PlannerV8.chooseBand(${id},'${k}')">${v}</button>`).join('')}</div><p class="sm">昼食は12時ごろ、夕食はプランの最後を目安にします。アルコールは時間を固定せず、お店の営業時間に合わせます。</p>`)},chooseBand(id,b){const w=wish(id);if(w){w._band=b;w._manualTime=''}$('v8modal').classList.remove('show');plan8(ST.lastRandom)},place(id){const w=wish(id);if(!w)return;const ps=P.filter(p=>match(p,w.t)&&PlaceData.hasCoord(p));modal('行き先を変更',`<select id="v8place"><option value="">場所もおまかせ</option>${ps.map(p=>`<option value="${H(PlaceData.keyOf(p))}" ${w.pid===PlaceData.keyOf(p)?'selected':''}>${H(p['名称'])} ★${PlaceData.recommendation(p)}</option>`).join('')}</select><div style="margin-top:10px"><button onclick="PlannerV8.choosePlace(${id})">変更する</button></div>`)},choosePlace(id){const w=wish(id);if(w)w.pid=$('v8place').value;$('v8modal').classList.remove('show');renderChoices();plan8(ST.lastRandom)}};
 function boot(){addWish=function(t,o={}){W.push({id:++seq,t,d:o.d??'',time:'',pid:o.pid||'',pref:o.pref||'',_band:'auto',_manualTime:''});renderChoices()};changeWish=function(id,k,v){const w=wish(id);if(!w)return;w[k]=v;if(k==='t'){w.pid='';w.pref='';w._band='auto';w._manualTime=''}renderChoices()};delWish=function(id){W=W.filter(w=>w.id!==id);renderChoices()};sample=function(){W=[];seq=0;addWish('breakfast');addWish('landmark');addWish('lunch');addWish('onsen');addWish('lightmeal')};renderWishes=renderChoices;plan=plan8;window.plan=plan8;const chooser=$('v7walk');if(chooser)chooser.remove();const d=document.createElement('div');d.className='v8-walk';d.innerHTML='<label>徒歩は1回あたり</label><select id="v8walk"><option>5</option><option selected>10</option><option>15</option><option>20</option><option>30</option></select><span>分以内</span><span class="sm">バス停まで／降車後も同じ上限。バス待ちは10分以内。</span>';const tc=$('transportChooser');(tc||$('summary')?.parentElement)?.insertAdjacentElement('afterend',d);$('v8walk').onchange=e=>{CFG.walkMax=+e.target.value;if($('result').querySelector('.card'))plan8(ST.lastRandom)};const st=document.createElement('style');st.textContent=`.v8-choice{display:grid;grid-template-columns:minmax(150px,.9fr) minmax(180px,1.2fr) 70px auto;gap:7px;align-items:center;border-bottom:1px solid #e5e9eb;padding:7px 4px;background:#fff}.v8-choice.compact select{height:38px}.v8-choice.compact button{height:38px;padding:6px 10px}.v8-candidate-count{font-size:12px;color:#64748b;text-align:center;white-space:nowrap}.plan-edit{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.plan-edit button{font-size:11px;padding:5px 8px}.v8-walk{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin:8px 0 12px;padding:8px 10px;border:1px solid #dfe5e7;border-radius:10px;background:#fafbfb}.v8-walk label{margin:0}.v8-walk select{width:auto}.v8-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.32);z-index:99999;padding:20px;align-items:center;justify-content:center}.v8-modal.show{display:flex}.v8-dialog{width:min(560px,96vw);max-height:80vh;overflow:auto;background:#fff;border-radius:16px;padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.22)}.v8-band{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.v8-band button{padding:12px}@media(max-width:760px){.v8-choice{grid-template-columns:1fr 1fr auto}.v8-candidate-count{display:none}.v8-choice button{height:38px}.v8-band{grid-template-columns:1fr}}`;document.head.appendChild(st);const v=document.querySelector('.ver');if(v)v.textContent='planner rebuild 1.8';renderChoices()}

@@ -22,7 +22,7 @@ function renderMood(){
  const mood=M.moods.find(m=>m.id===state.mood);$('deepening').hidden=!mood;
  if(mood){$('selected-mood').textContent=mood.label;$('keywords').innerHTML=mood.children.map(([key,label])=>{const count=places.filter(p=>M.visible(p)&&M.match(p,key)).length;return `<button type="button" class="chip" data-keyword="${key}" aria-pressed="${state.keywords.includes(key)}">${esc(label)}<span class="chip-count">${count}</span></button>`}).join('');}
 }
-function saveButton(p){const id=PD.keyOf(p),active=saved.has(id);return `<button type="button" class="save-button" data-save="${esc(id)}" aria-pressed="${active}" aria-label="${esc(p['名称'])}を${active?'行きたいから外す':'行きたいに追加'}">${active?'✓ 行きたい':'＋ 行きたい'}</button>`}
+function saveButton(p){const id=PD.keyOf(p),active=saved.has(id);return `<button type="button" class="save-button" data-save="${esc(id)}" aria-pressed="${active}" aria-label="${esc(p['名称'])}を${active?'行きたいから外す':'行きたいに追加'}">${active?'行きたいから外す':'＋ 行きたい'}</button>`}
 function card(p){const id=PD.keyOf(p),[icon,cls,label]=art(p);return `<article class="place-card"><div class="card-art ${cls}" aria-hidden="true"><span>${icon}</span><small>${label}</small></div><div class="card-body"><p class="card-category">${esc(category(p))}</p><h3>${esc(p['名称'])}</h3><p class="card-description">${esc(summary(p))}</p><div class="card-badges">${tagsFor(p).map(t=>`<span>${esc(t)}</span>`).join('')}</div><div class="card-meta"><span>${esc(distanceLabel(p))}</span><span>${M.duration(p)?'滞在 '+M.duration(p)+'分程度':''}</span></div><div class="card-actions"><button type="button" class="detail-button" data-focus="${esc(id)}">地図・行き方</button><button type="button" class="detail-button" data-detail="${esc(id)}" aria-label="${esc(p['名称'])}の詳細を見る">詳しく見る ↗</button>${saveButton(p)}</div></div></article>`}
 function results(){
  const pool=!state.mood&&!state.query?places.filter(p=>M.moods.some(m=>M.inMood(p,m.id))):places;
@@ -42,12 +42,12 @@ function persist(){try{localStorage.setItem(STORE,JSON.stringify([...saved]))}ca
 function renderSelection(){
  const chosen=[...saved].map(id=>byId.get(id)).filter(Boolean);
  $('selection-bar').hidden=chosen.length===0;$('selection-label').textContent='行きたい '+chosen.length+'件';
- $('selected-places').innerHTML=chosen.length?'<p class="small-note">行きたい場所を選んで、移動手段を確認してください。</p><div class="chips">'+chosen.map(p=>'<button type="button" class="chip" data-focus="'+esc(PD.keyOf(p))+'" aria-pressed="'+(state.active===PD.keyOf(p))+'">'+esc(p['名称'])+'</button>').join('')+'</div>':'<p class="small-note">「行きたい」に追加した場所はここに集まります。候補の「地図・行き方」からも確認できます。</p>';
+ $('selected-places').innerHTML=chosen.length?'<p class="small-note">行きたい場所を選んで、移動手段を確認してください。</p><div class="chips">'+chosen.map(p=>'<div class="selected-place"><button type="button" class="chip" data-focus="'+esc(PD.keyOf(p))+'" aria-pressed="'+(state.active===PD.keyOf(p))+'">'+esc(p['名称'])+'</button><button type="button" class="remove-selected" data-remove="'+esc(PD.keyOf(p))+'" aria-label="'+esc(p['名称'])+'を行きたいから外す">× 外す</button></div>').join('')+'</div>':'<p class="small-note">「行きたい」に追加した場所はここに集まります。候補の「地図・行き方」からも確認できます。</p>';
  window.DiscoverMap?.draw({places:results(),allPlaces:places,saved:chosen,origin:state.origin,originLabel:state.gps?'現在地':'下諏訪駅',station:places.find(p=>p['名称']==='下諏訪駅'),active:byId.get(state.active)||null});
 }
 function revealMap(){if($('saved-dialog').open)$('saved-dialog').close();if($('place-dialog').open)$('place-dialog').close();$('map-section').scrollIntoView?.({behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});window.DiscoverMap?.reveal();}
 function focus(id,scroll=true){state.active=byId.has(id)?id:'';renderSelection();if(scroll)revealMap()}
-function toggleSaved(id){if(!byId.has(id))return;const adding=!saved.has(id);if(adding){saved.add(id);state.active=id}else saved.delete(id);persist();renderResults();renderSaved();if(currentDetail===id)renderDetail(byId.get(id));if(adding)notify('行きたいに追加しました。次は「地図・行き方を見る」で出発を確認できます。');}
+function toggleSaved(id){if(!byId.has(id))return;const adding=!saved.has(id);if(adding){saved.add(id);state.active=id}else{saved.delete(id);if(state.active===id)state.active=[...saved][0]||''}persist();renderResults();renderSaved();if(currentDetail===id)renderDetail(byId.get(id));if(adding)notify('行きたいに追加しました。次は「地図・行き方を見る」で出発を確認できます。');else notify(byId.get(id)['名称']+'を行きたいから外しました。');}
 window.DiscoverUI={focus};
 
 function mapURL(p){return M.safeURL(p['GoogleマップURL_確定'])||'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent([p['名称'],p['住所']].filter(Boolean).join(' '))}

@@ -13,3 +13,5 @@
 /* Keep removing a saved destination visible beside its name. */
 .selected-place{display:flex;align-items:stretch;border:1px solid #c5d0bd;border-radius:12px;overflow:hidden;max-width:100%;background:var(--white)}.selected-place .chip{border:0;border-radius:0;min-width:0;white-space:normal;text-align:left}.remove-selected{border:0;border-left:1px solid #c5d0bd;background:#f4eee7;color:#75483a;padding:8px 12px;font-size:12px;white-space:nowrap}.brand-town{font-size:22px}.card-actions{flex-wrap:wrap}
 @media(max-width:650px){.brand-town{font-size:18px}.site-header{flex-wrap:wrap}.site-header nav{margin-left:auto}.remove-selected{min-height:40px;padding:8px 10px}.selected-place .chip{padding:9px 12px}}
+
+.radius-label{background:transparent;border:0;pointer-events:none;text-align:center}.radius-label span{background:#fffD;color:#2e6a9d;font-size:10px;padding:1px 5px;border-radius:8px;white-space:nowrap}#map-location-update{border:1px solid #c5d0bd;border-radius:999px;background:var(--white);color:var(--green);font-size:11px;padding:6px 10px;margin-left:8px}

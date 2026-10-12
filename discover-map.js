@@ -1,13 +1,13 @@
 (() => {
 'use strict';
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let map=null,pointLayer=null,busLayer=null,routeLayer=null,toiletLayer=null,tripLayer=null,originMarker=null,snapshot=null,fitKey='',busStops=[],timetable=null,busPromise=null,routeVersion=0,popupVersion=0,openStop=null;
+let map=null,pointLayer=null,busLayer=null,routeLayer=null,toiletLayer=null,tripLayer=null,originMarker=null,radiusLayer=null,snapshot=null,fitKey='',busStops=[],timetable=null,busPromise=null,routeVersion=0,popupVersion=0,openStop=null;
 const icons={normal:'#607e65',saved:'#ba7f27',active:'#245e52'};
 function initialize(){
  if(map)return true;if(!window.L){$('map-status').textContent='地図を読み込めませんでした。行き方とナビのリンクは利用できます。';return false}
  map=L.map('discover-map',{scrollWheelZoom:false}).setView([36.074,138.087],14);
  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
- pointLayer=L.layerGroup().addTo(map);busLayer=L.layerGroup().addTo(map);routeLayer=L.layerGroup().addTo(map);toiletLayer=L.layerGroup().addTo(map);tripLayer=L.layerGroup().addTo(map);return true;
+ radiusLayer=L.layerGroup().addTo(map);pointLayer=L.layerGroup().addTo(map);busLayer=L.layerGroup().addTo(map);routeLayer=L.layerGroup().addTo(map);toiletLayer=L.layerGroup().addTo(map);tripLayer=L.layerGroup().addTo(map);return true;
 }
 function point(p){return {name:p['名称'],lat:PlaceData.lat(p),lng:PlaceData.lng(p)}}
 function busPoint(s){return {lat:+(s.latitude||s.stop_lat),lng:+(s.longitude||s.stop_lon)}}
@@ -48,6 +48,15 @@ function drawToilets(){
  for(const p of toiletPlaces()){const dedicated=p['種別']==='トイレ';const popup=document.createElement('div');popup.innerHTML='<b>🚻 '+esc(p['名称'])+'</b><p>'+esc(p['住所']||'')+'</p><p class="small-note">'+(dedicated?'トイレ地点':'施設内のトイレ。利用条件は施設で確認してください。')+'</p>'+(PlaceData.truthy(PlaceData.effective(p,'多目的トイレ'))?'<p>多目的トイレ：登録あり</p>':'');const button=document.createElement('button');button.type='button';button.className='map-popup-button';button.textContent='ここへの行き方';button.onclick=()=>window.DiscoverUI.focus(PlaceData.keyOf(p),false);popup.appendChild(button);L.marker([PlaceData.lat(p),PlaceData.lng(p)],{icon:L.divIcon({className:'toilet-pin',html:'<span>WC</span>',iconSize:[28,24],iconAnchor:[14,12]}),title:'トイレ：'+p['名称']}).bindPopup(popup).addTo(toiletLayer);}
 }
 
+function drawRadius(){
+ radiusLayer.clearLayers();const current=snapshot.gps&&snapshot.origin;
+ $('location-radius-help').hidden=!current;
+ if(!current)return;
+ for(const radius of [500,200,100]){
+  L.circle([current.lat,current.lng],{radius,color:'#2e6a9d',weight:1,opacity:.45,fillColor:'#2e6a9d',fillOpacity:.035,interactive:false}).addTo(radiusLayer);
+  L.marker([current.lat+radius/111320,current.lng],{interactive:false,icon:L.divIcon({className:'radius-label',html:'<span>'+radius+'m</span>',iconSize:[42,18],iconAnchor:[21,9]})}).addTo(radiusLayer);
+ }
+}
 function draw(snapshotData){
  snapshot=snapshotData;const {places,saved,origin,active}=snapshot;
  if(initialize()){
@@ -59,10 +68,10 @@ function draw(snapshotData){
   const button=document.createElement('button');button.type='button';button.className='map-popup-button';button.textContent='この場所への行き方';button.onclick=()=>window.DiscoverUI.focus(id,false);popup.appendChild(button);
   L.circleMarker([PlaceData.lat(p),PlaceData.lng(p)],{radius:isActive?10:isSaved?8:6,color,fillColor:color,fillOpacity:.9,weight:isActive?3:1}).bindPopup(popup).addTo(pointLayer);
  }
- if(origin){if(originMarker)map.removeLayer(originMarker);originMarker=L.circleMarker([origin.lat,origin.lng],{radius:7,color:'#fff',fillColor:'#2e6a9d',fillOpacity:1,weight:3}).bindPopup('出発地点').addTo(map)}
- drawBus();drawToilets();const key=[...combined.keys()].sort().join(',')+'|'+(active?PlaceData.keyOf(active):'')+'|'+JSON.stringify(origin);
+ if(origin){if(originMarker)map.removeLayer(originMarker);originMarker=L.circleMarker([origin.lat,origin.lng],{radius:7,color:'#fff',fillColor:'#2e6a9d',fillOpacity:1,weight:3}).bindPopup(snapshot.gps?'現在地':'下諏訪駅（出発地点）').addTo(map)}
+ drawRadius();drawBus();drawToilets();const key=[...combined.keys()].sort().join(',')+'|'+(active?PlaceData.keyOf(active):'')+'|'+JSON.stringify(origin)+'|'+snapshot.gps;
  if(active&&PlaceData.hasCoord(active)){bounds.length=0;bounds.push([PlaceData.lat(active),PlaceData.lng(active)])}
- if(key!==fitKey&&bounds.length){const nearOrigin=bounds.some(b=>DiscoverModel.distance({latitude:b[0],longitude:b[1]},origin)<10);if(origin&&nearOrigin)bounds.push([origin.lat,origin.lng]);map.fitBounds(bounds,{padding:[28,28],maxZoom:16});fitKey=key}
+ if(key!==fitKey&&bounds.length){const nearOrigin=bounds.some(b=>DiscoverModel.distance({latitude:b[0],longitude:b[1]},origin)<10);if(origin&&nearOrigin)bounds.push([origin.lat,origin.lng]);if(snapshot.gps&&origin){const circle=L.circle([origin.lat,origin.lng],{radius:500});const range=circle.getBounds();bounds.push(range.getSouthWest(),range.getNorthEast())}map.fitBounds(bounds,{padding:[28,28],maxZoom:16});fitKey=key}
  map.invalidateSize();$('map-status').textContent='候補 '+[...combined.values()].filter(PlaceData.hasCoord).length+'地点・バス停 '+busStops.length+'か所';
  }
  const selectable=snapshot.places.concat(snapshot.saved,snapshot.station?[snapshot.station]:[]);
@@ -112,6 +121,7 @@ for(const id of ['travel-mode','departure-date','departure-time'])$(id).onchange
 $('show-toilets').onchange=drawToilets;
 $('close-bus-trip').onclick=()=>$('bus-trip-dialog').close();
 $('trip-map-button').onclick=()=>{$('bus-trip-dialog').close();$('discover-map').scrollIntoView({behavior:'smooth',block:'center'});map?.invalidateSize()};
+$('map-location-update').onclick=()=>window.DiscoverUI.refreshLocation();
 $('clear-bus-route').onclick=()=>{tripLayer?.clearLayers();$('bus-route-banner').hidden=true;fitKey='';if(snapshot)draw(snapshot)};
 window.DiscoverMap={draw,updateAccess,reveal(){initialize();map?.invalidateSize();},loadStops};loadStops();
 })();

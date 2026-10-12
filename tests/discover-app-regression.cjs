@@ -16,8 +16,8 @@ function click(data){listeners.get('click')({target:{closest:()=>({dataset:data}
  assert(node('selected-places').innerHTML.includes('data-remove='));assert(node('results').innerHTML.includes('行きたいから外す'));assert.equal(mapSnapshot.active.place_id,'r');
  click({detail:'r'});assert(node('place-dialog').open);assert(node('place-detail').innerHTML.includes('11:00-15:00'));assert(!node('place-detail').innerHTML.includes('INTERNAL_NOT_FOR_VISITORS'));
  await node('copy-list').onclick();assert(clipboard.includes('テストそば店'));
- node('location-button').onclick();assert.equal(node('sort-select').value,'near');assert(!node('station-button').hidden);
- node('station-button').onclick();assert(node('station-button').hidden);
+ node('location-button').onclick();assert.equal(node('sort-select').value,'near');assert.equal(mapSnapshot.gps,true);assert(!node('station-button').hidden);
+ node('station-button').onclick();assert(node('station-button').hidden);assert.equal(mapSnapshot.gps,false);
  locationFail=true;node('location-button').onclick();assert(node('location-status').textContent.includes('許可がありません'));assert(!node('location-button').disabled);
  node('search-input').handlers.input({target:{value:'存在しない'}});assert(!node('empty-state').hidden);
  node('clear-filters').onclick();assert(node('empty-state').hidden);

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#f7f5ef"><meta name="description" content="下諏訪で、次にしたいことを見つけよう。気になるキーワードから、お店や温泉、まち歩きの行き先を探せます。">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><title>下諏訪、なにしよう？</title><link rel="stylesheet" href="discover.css?v=20261012-remove-1">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><title>下諏訪、なにしよう？</title><link rel="stylesheet" href="discover.css?v=20261012-radius-1">
 </head>
 <body>
 <header class="site-header"><a class="brand" href="discover.html"><span class="brand-symbol" aria-hidden="true">下</span><span><span class="brand-town">下諏訪</span>、なにしよう？</span></a><nav aria-label="ページ"><a href="index.html">時間プランナー <span aria-hidden="true">↗</span></a><button class="saved-toggle" id="saved-toggle" type="button">行きたい <span id="saved-count">0</span></button></nav></header>
@@ -21,7 +21,7 @@
 <section class="map-section" id="map-section" aria-labelledby="map-title">
 <div class="section-heading"><div><p class="eyebrow">03 / LET’S GO</p><h2 id="map-title">場所と、行き方を確かめよう。</h2><p class="small-note">緑：候補　黄：行きたい　青：バス停・出発地点　赤：トイレ</p></div></div>
 <div class="selected-places" id="selected-places"></div>
-<div class="map-toolbar"><label><input type="checkbox" id="show-bus-stops" checked>バス停を表示</label><label><input type="checkbox" id="show-toilets">トイレを表示</label><span id="map-status" class="small-note" role="status"></span></div>
+<p id="location-radius-help" class="small-note" hidden>青い円は現在地から100m・200m・500mの目安です。<button type="button" id="map-location-update">現在地を更新 ⌖</button></p><div class="map-toolbar"><label><input type="checkbox" id="show-bus-stops" checked>バス停を表示</label><label><input type="checkbox" id="show-toilets">トイレを表示</label><span id="map-status" class="small-note" role="status"></span></div>
 <div id="discover-map" aria-label="候補地点とバス停の地図"></div>
 <div id="bus-route-banner" class="bus-route-banner" hidden><span id="bus-route-label"></span><button id="clear-bus-route" type="button">ルート表示を外す</button></div>
 <div class="access-panel"><h3>ここへ行くには？</h3><p class="small-note">出発地点：<span id="route-origin-label">下諏訪駅</span>（現在地ボタンで変更できます）</p>
@@ -35,6 +35,6 @@
 <dialog id="saved-dialog" class="saved-dialog"><div class="dialog-heading"><div><p class="eyebrow">YOUR LITTLE LIST</p><h2>行きたい場所</h2></div><button id="close-saved" class="close-button" type="button" aria-label="行きたい場所を閉じる">×</button></div><p class="small-note">候補リストとしてこのブラウザに保存されます。次は地図で行き先を選び、行き方を確認できます。</p><div id="saved-list"></div><div class="saved-actions"><button id="saved-map-button" class="primary-button" type="button">地図で行き方を見る ↓</button><button id="copy-list" type="button" class="primary-button">候補をコピー</button><a class="secondary-link" href="index.html">時間プランナーを開く ↗</a></div></dialog>
 <div id="selection-bar" class="selection-bar" hidden><span id="selection-label"></span><button id="selection-map-button" type="button">地図・行き方を見る ↓</button></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="planner-core.js?v=20261012-remove-1"></script><script src="place-data.js?v=20261012-discover"></script><script src="discover-model.js?v=20261012-remove-1"></script><script src="discover-travel.js?v=20261012-remove-1"></script><script src="discover-map.js?v=20261012-remove-1"></script><script src="discover-app.js?v=20261012-remove-1"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="planner-core.js?v=20261012-radius-1"></script><script src="place-data.js?v=20261012-discover"></script><script src="discover-model.js?v=20261012-radius-1"></script><script src="discover-travel.js?v=20261012-radius-1"></script><script src="discover-map.js?v=20261012-radius-1"></script><script src="discover-app.js?v=20261012-radius-1"></script>
 </body>
 </html>

@@ -12,7 +12,7 @@ const tick=()=>new Promise(r=>setImmediate(r));
 function click(data){listeners.get('click')({target:{closest:()=>({dataset:data})}})}
 (async()=>{
  await tick();assert(node('results').innerHTML.includes('テストそば店'));assert(!node('results').innerHTML.includes('INTERNAL_NOT_FOR_VISITORS'));
- click({save:'r'});assert.equal(node('saved-count').textContent,1);assert(storage.get('shimosuwa_discover_wanted_v1').includes('r'));
+ click({save:'r'});assert.equal(node('saved-count').textContent,1);assert(!node('selection-bar').hidden);assert(node('selected-places').innerHTML.includes('テストそば店'));assert(node('results').innerHTML.includes('data-focus')); assert(storage.get('shimosuwa_discover_wanted_v1').includes('r'));
  click({detail:'r'});assert(node('place-dialog').open);assert(node('place-detail').innerHTML.includes('11:00-15:00'));assert(!node('place-detail').innerHTML.includes('INTERNAL_NOT_FOR_VISITORS'));
  await node('copy-list').onclick();assert(clipboard.includes('テストそば店'));
  node('location-button').onclick();assert.equal(node('sort-select').value,'near');assert(!node('station-button').hidden);

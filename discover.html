@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#f7f5ef"><meta name="description" content="下諏訪で、次にしたいことを見つけよう。気になるキーワードから、お店や温泉、まち歩きの行き先を探せます。">
-<title>下諏訪、なにしよう？</title><link rel="stylesheet" href="discover.css?v=20261012-2">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><title>下諏訪、なにしよう？</title><link rel="stylesheet" href="discover.css?v=20261012-map-2">
 </head>
 <body>
 <header class="site-header"><a class="brand" href="discover.html"><span class="brand-symbol" aria-hidden="true">下</span><span>下諏訪、なにしよう？</span></a><nav aria-label="ページ"><a href="index.html">時間プランナー <span aria-hidden="true">↗</span></a><button class="saved-toggle" id="saved-toggle" type="button">行きたい <span id="saved-count">0</span></button></nav></header>
@@ -16,13 +16,23 @@
 <div class="filters"><label><input id="rain-filter" type="checkbox">雨の日でも</label><label><input id="short-filter" type="checkbox">30分以内で</label><p>距離は直線距離の目安です。</p></div>
 <div id="load-error" class="empty-state" hidden><h3>地点を読み込めませんでした</h3><p>通信状況を確認して、もう一度お試しください。</p><button id="retry-button" class="primary-button" type="button">再読み込み</button></div>
 <div id="empty-state" class="empty-state" hidden><span aria-hidden="true">↺</span><h3>ぴったりの場所が見つかりませんでした。</h3><p>言葉をひとつ減らすか、条件をゆるめてみてください。</p><button id="clear-filters" class="primary-button" type="button">絞り込みを外す</button></div>
-<div id="results" class="place-grid"></div><button id="more-button" class="more-button" type="button" hidden>もう少し見る ↓</button>
+<p class="next-step-help">① 気になる場所を「行きたい」に追加 → ② 下の地図で行き方を確認 → ③ ナビで出発</p><div id="results" class="place-grid"></div><button id="more-button" class="more-button" type="button" hidden>もう少し見る ↓</button>
 </section>
+<section class="map-section" id="map-section" aria-labelledby="map-title">
+<div class="section-heading"><div><p class="eyebrow">03 / LET’S GO</p><h2 id="map-title">場所と、行き方を確かめよう。</h2><p class="small-note">緑：候補　黄：行きたい　青：バス停・出発地点</p></div></div>
+<div class="selected-places" id="selected-places"></div>
+<div class="map-toolbar"><label><input type="checkbox" id="show-bus-stops" checked>バス停を表示</label><span id="map-status" class="small-note" role="status"></span></div>
+<div id="discover-map" aria-label="候補地点とバス停の地図"></div>
+<div class="access-panel"><h3>ここへ行くには？</h3><p class="small-note">出発地点：<span id="route-origin-label">下諏訪駅</span>（現在地ボタンで変更できます）</p>
+<div class="access-controls"><label>行き先<select id="destination-select"><option value="">行き先を選んでください</option></select></label><label>移動手段<select id="travel-mode"><option value="walk">🚶 徒歩</option><option value="car">🚗 車</option><option value="bike">🚲 自転車</option><option value="bus">🚌 バス＋徒歩</option></select></label><label>出発日<input id="departure-date" type="date"></label><label>出発時刻<input id="departure-time" type="time"></label></div>
+<div id="route-result" class="route-result" role="status" aria-live="polite">候補の「地図・行き方」を押すか、行き先を選んでください。</div>
+</div></section>
 <footer class="site-footer"><p>気になる場所から、下諏訪を楽しもう。</p><a href="maintenance.html">地点データ管理 ↗</a><p class="small-note">営業時間などは登録情報です。最新情報は店舗・施設のページをご確認ください。</p></footer>
 </main>
 <dialog id="place-dialog" class="place-dialog"><button id="close-dialog" class="close-button" type="button" aria-label="詳細を閉じる">×</button><div id="place-detail"></div></dialog>
-<dialog id="saved-dialog" class="saved-dialog"><div class="dialog-heading"><div><p class="eyebrow">YOUR LITTLE LIST</p><h2>行きたい場所</h2></div><button id="close-saved" class="close-button" type="button" aria-label="行きたい場所を閉じる">×</button></div><p class="small-note">このブラウザに保存されます。</p><div id="saved-list"></div><div class="saved-actions"><button id="copy-list" type="button" class="primary-button">候補をコピー</button><a class="secondary-link" href="index.html">時間プランナーを開く ↗</a></div></dialog>
+<dialog id="saved-dialog" class="saved-dialog"><div class="dialog-heading"><div><p class="eyebrow">YOUR LITTLE LIST</p><h2>行きたい場所</h2></div><button id="close-saved" class="close-button" type="button" aria-label="行きたい場所を閉じる">×</button></div><p class="small-note">候補リストとしてこのブラウザに保存されます。次は地図で行き先を選び、行き方を確認できます。</p><div id="saved-list"></div><div class="saved-actions"><button id="saved-map-button" class="primary-button" type="button">地図で行き方を見る ↓</button><button id="copy-list" type="button" class="primary-button">候補をコピー</button><a class="secondary-link" href="index.html">時間プランナーを開く ↗</a></div></dialog>
+<div id="selection-bar" class="selection-bar" hidden><span id="selection-label"></span><button id="selection-map-button" type="button">地図・行き方を見る ↓</button></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-<script src="place-data.js?v=20261012-discover"></script><script src="discover-model.js?v=20261012-2"></script><script src="discover-app.js?v=20261012-2"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="planner-core.js?v=20261012-map-2"></script><script src="place-data.js?v=20261012-discover"></script><script src="discover-model.js?v=20261012-map-2"></script><script src="discover-travel.js?v=20261012-map-2"></script><script src="discover-map.js?v=20261012-map-2"></script><script src="discover-app.js?v=20261012-map-2"></script>
 </body>
 </html>

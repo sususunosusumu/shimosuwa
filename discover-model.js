@@ -15,7 +15,7 @@ function flag(p,k,pd){return api(pd).truthy(api(pd).effective(p,k))}
 function tag(p,k,pd){return api(pd).hasFoodTag(p,k)}
 function food(p,pd){return api(pd).isFoodType(p)||/カフェ|喫茶|ベーカリー|菓子/.test([p['種別'],p['カテゴリ1'],p['カテゴリ']].join(' '))}
 function match(p,key,pd){
- const t=text(p),f=food(p,pd);
+ const t=text(p),f=food(p,pd),attraction=!f&&!/トイレ|生活サービス|交通|駐車/.test(String(p['種別']||''));
  switch(key){
  case 'soba':return f&&(tag(p,'そば',pd)||/そば|蕎麦|うどん/.test(t));
  case 'ramen':return f&&/ラーメン|つけめん|つけ麺/.test(t);
@@ -29,15 +29,15 @@ function match(p,key,pd){
  case 'sweets':return f&&tag(p,'スイーツ',pd);
  case 'bread':return f&&/パン|ベーカリー/.test(t);
  case 'takeout':return f&&tag(p,'テイクアウト',pd);
- case 'onsen':return !f&&/温泉|銭湯|共同浴場/.test(t)&&!/足湯/.test(t);
- case 'footbath':return !f&&/足湯/.test(t);
- case 'rest':return !f&&(flag(p,'休憩向き',pd)||flag(p,'座れる場所',pd));
- case 'lake':return !f&&/湖畔|諏訪湖|水辺|みずべ/.test(t);
- case 'park':return !f&&/公園|広場|散策|散歩/.test(t);
- case 'history':return !f&&/史跡|宿場|古墳|遺跡|まち歩き|歴史|旧宅|旧家/.test(t);
- case 'shrine':return !f&&/神社|寺院|寺社|大社|地蔵|八幡/.test(t);
- case 'museum':return !f&&/博物館|美術館|資料館|記念館|ミュージアム/.test(t);
- case 'experience':return !f&&/体験|工作|制作|ものづくり/.test(t);
+ case 'onsen':return attraction&&/温泉|銭湯|共同浴場/.test(t)&&!/足湯/.test(t);
+ case 'footbath':return attraction&&/足湯/.test(t);
+ case 'rest':return attraction&&(flag(p,'休憩向き',pd)||flag(p,'座れる場所',pd));
+ case 'lake':return attraction&&/湖畔|諏訪湖|水辺|みずべ/.test(t);
+ case 'park':return attraction&&/公園|広場|散策|散歩/.test(t);
+ case 'history':return attraction&&/史跡|宿場|古墳|遺跡|まち歩き|歴史|旧宅|旧家/.test(t);
+ case 'shrine':return attraction&&/神社|寺院|寺社|大社|地蔵|八幡/.test(t);
+ case 'museum':return attraction&&/博物館|美術館|資料館|記念館|ミュージアム/.test(t);
+ case 'experience':return attraction&&/体験|工作|制作|ものづくり/.test(t);
  case 'craft':return f&&tag(p,'クラフトビール',pd);
  case 'sake':return f&&tag(p,'日本酒',pd);
  case 'wine':return f&&tag(p,'ワイン',pd);

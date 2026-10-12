@@ -1,8 +1,8 @@
 (() => {
 'use strict';
 const $=id=>document.getElementById(id),M=window.DiscoverModel,PD=window.PlaceData;
-const STORE='shimosuwa_discover_wanted_v1',PAGE_SIZE=9;
-const state={mood:'',keywords:[],query:'',rain:false,short:false,sort:'recommended',origin:null,gps:false,limit:PAGE_SIZE};
+const STORE='shimosuwa_discover_wanted_v1',PAGE_SIZE=6;
+const state={mood:'',keywords:[],query:'',rain:false,short:false,sort:'recommended',origin:null,gps:false,limit:PAGE_SIZE,active:''};
 let places=[],byId=new Map(),saved=new Set(),toastTimer,loadPending=false,currentDetail=null;
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 try{const items=JSON.parse(localStorage.getItem(STORE)||'[]');if(Array.isArray(items))saved=new Set(items.filter(id=>typeof id==='string'))}catch(_){}
@@ -23,7 +23,7 @@ function renderMood(){
  if(mood){$('selected-mood').textContent=mood.label;$('keywords').innerHTML=mood.children.map(([key,label])=>{const count=places.filter(p=>M.visible(p)&&M.match(p,key)).length;return `<button type="button" class="chip" data-keyword="${key}" aria-pressed="${state.keywords.includes(key)}">${esc(label)}<span class="chip-count">${count}</span></button>`}).join('');}
 }
 function saveButton(p){const id=PD.keyOf(p),active=saved.has(id);return `<button type="button" class="save-button" data-save="${esc(id)}" aria-pressed="${active}" aria-label="${esc(p['名称'])}を${active?'行きたいから外す':'行きたいに追加'}">${active?'✓ 行きたい':'＋ 行きたい'}</button>`}
-function card(p){const id=PD.keyOf(p),[icon,cls,label]=art(p);return `<article class="place-card"><div class="card-art ${cls}" aria-hidden="true"><span>${icon}</span><small>${label}</small></div><div class="card-body"><p class="card-category">${esc(category(p))}</p><h3>${esc(p['名称'])}</h3><p class="card-description">${esc(summary(p))}</p><div class="card-badges">${tagsFor(p).map(t=>`<span>${esc(t)}</span>`).join('')}</div><div class="card-meta"><span>${esc(distanceLabel(p))}</span><span>${M.duration(p)?'滞在 '+M.duration(p)+'分程度':''}</span></div><div class="card-actions"><button type="button" class="detail-button" data-detail="${esc(id)}" aria-label="${esc(p['名称'])}の詳細を見る">詳しく見る ↗</button>${saveButton(p)}</div></div></article>`}
+function card(p){const id=PD.keyOf(p),[icon,cls,label]=art(p);return `<article class="place-card"><div class="card-art ${cls}" aria-hidden="true"><span>${icon}</span><small>${label}</small></div><div class="card-body"><p class="card-category">${esc(category(p))}</p><h3>${esc(p['名称'])}</h3><p class="card-description">${esc(summary(p))}</p><div class="card-badges">${tagsFor(p).map(t=>`<span>${esc(t)}</span>`).join('')}</div><div class="card-meta"><span>${esc(distanceLabel(p))}</span><span>${M.duration(p)?'滞在 '+M.duration(p)+'分程度':''}</span></div><div class="card-actions"><button type="button" class="detail-button" data-focus="${esc(id)}">地図・行き方</button><button type="button" class="detail-button" data-detail="${esc(id)}" aria-label="${esc(p['名称'])}の詳細を見る">詳しく見る ↗</button>${saveButton(p)}</div></div></article>`}
 function results(){
  const pool=!state.mood&&!state.query?places.filter(p=>M.moods.some(m=>M.inMood(p,m.id))):places;
  return M.search(pool,state);
@@ -34,12 +34,22 @@ function renderResults(){
  $('results-count').textContent=`${found.length}件の候補${state.keywords.length?' · 選んだ言葉のどれかに合う場所':''}`;
  $('results').innerHTML=found.slice(0,state.limit).map(card).join('');
  $('empty-state').hidden=found.length!==0;$('more-button').hidden=found.length<=state.limit;
- $('saved-count').textContent=saved.size;
+ $('saved-count').textContent=saved.size;renderSelection();
 }
 function refresh(resetLimit=true){if(resetLimit)state.limit=PAGE_SIZE;renderMood();renderResults();updateURL()}
 function reset(){Object.assign(state,{mood:'',keywords:[],query:'',rain:false,short:false});$('search-input').value='';$('rain-filter').checked=false;$('short-filter').checked=false;refresh()}
 function persist(){try{localStorage.setItem(STORE,JSON.stringify([...saved]))}catch(_){notify('このブラウザには保存できません。開いている間は候補を保持します。')}}
-function toggleSaved(id){if(!byId.has(id))return;if(saved.has(id)){saved.delete(id)}else saved.add(id);persist();renderResults();renderSaved();if(currentDetail===id)renderDetail(byId.get(id));}
+function renderSelection(){
+ const chosen=[...saved].map(id=>byId.get(id)).filter(Boolean);
+ $('selection-bar').hidden=chosen.length===0;$('selection-label').textContent='行きたい '+chosen.length+'件';
+ $('selected-places').innerHTML=chosen.length?'<p class="small-note">行きたい場所を選んで、移動手段を確認してください。</p><div class="chips">'+chosen.map(p=>'<button type="button" class="chip" data-focus="'+esc(PD.keyOf(p))+'" aria-pressed="'+(state.active===PD.keyOf(p))+'">'+esc(p['名称'])+'</button>').join('')+'</div>':'<p class="small-note">「行きたい」に追加した場所はここに集まります。候補の「地図・行き方」からも確認できます。</p>';
+ window.DiscoverMap?.draw({places:results(),saved:chosen,origin:state.origin,originLabel:state.gps?'現在地':'下諏訪駅',station:places.find(p=>p['名称']==='下諏訪駅'),active:byId.get(state.active)||null});
+}
+function revealMap(){if($('saved-dialog').open)$('saved-dialog').close();if($('place-dialog').open)$('place-dialog').close();$('map-section').scrollIntoView?.({behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});window.DiscoverMap?.reveal();}
+function focus(id,scroll=true){state.active=byId.has(id)?id:'';renderSelection();if(scroll)revealMap()}
+function toggleSaved(id){if(!byId.has(id))return;const adding=!saved.has(id);if(adding){saved.add(id);state.active=id}else saved.delete(id);persist();renderResults();renderSaved();if(currentDetail===id)renderDetail(byId.get(id));if(adding)notify('行きたいに追加しました。次は「地図・行き方を見る」で出発を確認できます。');}
+window.DiscoverUI={focus};
+
 function mapURL(p){return M.safeURL(p['GoogleマップURL_確定'])||'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent([p['名称'],p['住所']].filter(Boolean).join(' '))}
 function field(label,value){return value?`<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`:''}
 function renderDetail(p){
@@ -67,7 +77,7 @@ async function load(){
  if(loadPending)return;loadPending=true;$('load-error').hidden=true;$('empty-state').hidden=true;$('results-count').textContent='地点を読み込んでいます…';
  try{
   const data=await PD.loadAll();if(!data.places.length||!data.management.length)throw new Error('No place data');
-  places=data.places;byId=new Map(places.filter(p=>M.visible(p)).map(p=>[PD.keyOf(p),p]));saved=new Set([...saved].filter(id=>byId.has(id)));persist();stationOrigin();refresh();renderSaved();
+  places=data.places;byId=new Map(places.filter(p=>M.visible(p)).map(p=>[PD.keyOf(p),p]));saved=new Set([...saved].filter(id=>byId.has(id)));persist();stationOrigin();if(saved.size)state.active=[...saved][0];refresh();renderSaved();
  }catch(_){$('load-error').hidden=false;$('results-count').textContent='地点の読み込みに失敗しました';$('results').innerHTML='';$('more-button').hidden=true}finally{loadPending=false}
 }
 const params=new URLSearchParams(location.search),initialMood=params.get('mood');if(M.moods.some(m=>m.id===initialMood)){state.mood=initialMood;const allowed=new Set(M.moods.find(m=>m.id===initialMood).children.map(c=>c[0]));state.keywords=String(params.get('keywords')||'').split(',').filter(k=>allowed.has(k))}
@@ -75,6 +85,7 @@ document.addEventListener('click',event=>{
  const target=event.target.closest('button');if(!target)return;
  if(target.dataset.mood){state.mood=state.mood===target.dataset.mood?'':target.dataset.mood;state.keywords=[];refresh();}
  else if(target.dataset.keyword){const k=target.dataset.keyword;state.keywords=state.keywords.includes(k)?state.keywords.filter(x=>x!==k):state.keywords.concat(k);refresh();}
+ else if(target.dataset.focus)focus(target.dataset.focus);
  else if(target.dataset.save)toggleSaved(target.dataset.save);
  else if(target.dataset.detail)openDetail(target.dataset.detail);
  else if(target.dataset.remove)toggleSaved(target.dataset.remove);
@@ -89,6 +100,8 @@ $('location-button').onclick=locate;$('station-button').onclick=()=>{stationOrig
 $('saved-toggle').onclick=()=>{renderSaved();$('saved-dialog').showModal()};
 $('close-saved').onclick=()=>$('saved-dialog').close();$('close-dialog').onclick=()=>$('place-dialog').close();
 $('place-dialog').addEventListener('close',()=>currentDetail=null);
+$('selection-map-button').onclick=revealMap;$('saved-map-button').onclick=revealMap;
 $('copy-list').onclick=copySaved;$('retry-button').onclick=load;
+if(window.IntersectionObserver){new IntersectionObserver(entries=>{for(const entry of entries)$('selection-bar').classList.toggle('at-map',entry.isIntersecting)},{threshold:.03}).observe($('map-section'));}
 renderMood();load();
 })();

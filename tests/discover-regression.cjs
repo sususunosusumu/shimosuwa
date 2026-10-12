@@ -8,6 +8,7 @@ vm.createContext(context);vm.runInContext(fs.readFileSync('place-data.js','utf8'
  const soba=M.search(places,state,PD);assert(soba.some(p=>p['名称']==='とんねるや'));assert(!soba.some(p=>p['名称'].includes('温泉')));
  const craft=M.search(places,{...state,mood:'drink',keywords:['craft']},PD);assert(craft.some(p=>p['名称']==='ちいとこ商店'));
  const onsen=M.search(places,{...state,mood:'relax',keywords:['onsen']},PD);assert(onsen.some(p=>p['名称']==='菅野温泉'));assert(!onsen.some(p=>p['名称'].includes('足湯')));
+ const shrines=M.search(places,{...state,mood:'culture',keywords:['shrine']},PD);assert(shrines.some(p=>p['名称']==='諏訪大社 下社秋宮'));assert(!shrines.some(p=>/コンビニ|トイレ/.test(p['種別'])));
  const union=M.search(places,{...state,keywords:['soba','unagi']},PD);assert(union.length>=soba.length);assert(union.some(p=>p['名称']==='うなぎ林屋'));
  assert.equal(M.search(places,{...state,query:'存在しない店舗1234'},PD).length,0);
  const distance=soba.map(p=>M.distance(p,origin,PD)??Infinity);assert(distance.every((d,i)=>i===0||d>=distance[i-1]));

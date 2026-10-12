@@ -48,6 +48,7 @@ function match(p,key,pd){
  }
 }
 function visible(p,pd){return !api(pd).truthy(p['削除予定'])&&api(pd).autoLevel(p)!=='hidden'&&!!String(p['名称']||'').trim()}
+function toilet(p,pd){const d=api(pd);return visible(p,pd)&&d.hasCoord(p)&&(p['種別']==='トイレ'||!d.no(d.effective(p,'トイレ一般利用'))&&(d.truthy(d.effective(p,'トイレ'))||d.truthy(d.effective(p,'トイレあり'))))}
 function inMood(p,id,pd){const m=moods.find(m=>m.id===id);if(!m)return false;return m.children.some(([key])=>match(p,key,pd))||(id==='eat'&&food(p,pd));}
 function kmBetween(a,b){const rad=v=>v*Math.PI/180;const lat=rad(b.lat-a.lat),lng=rad(b.lng-a.lng),x=Math.sin(lat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(lng/2)**2;return 6371*2*Math.asin(Math.min(1,Math.sqrt(x)))}
 function distance(p,origin,pd){return origin&&api(pd).hasCoord(p)?kmBetween(origin,{lat:api(pd).lat(p),lng:api(pd).lng(p)}):null}
@@ -62,7 +63,7 @@ function search(places,state,pd){
  });
 }
 function safeURL(value){try{const u=new URL(String(value));return /^https?:$/.test(u.protocol)?u.href:''}catch(_){return ''}}
-const model={moods,text,match,visible,inMood,distance,duration,search,safeURL};
+const model={moods,text,match,visible,inMood,distance,duration,search,safeURL,toilet};
 root.DiscoverModel=model;
 if(typeof module!=='undefined'&&module.exports)module.exports=model;
 })(typeof window!=='undefined'?window:globalThis);

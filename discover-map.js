@@ -1,20 +1,53 @@
 (() => {
 'use strict';
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let map=null,pointLayer=null,busLayer=null,routeLayer=null,originMarker=null,snapshot=null,fitKey='',busStops=[],timetable=null,busPromise=null,routeVersion=0;
+let map=null,pointLayer=null,busLayer=null,routeLayer=null,toiletLayer=null,tripLayer=null,originMarker=null,snapshot=null,fitKey='',busStops=[],timetable=null,busPromise=null,routeVersion=0,popupVersion=0,openStop=null;
 const icons={normal:'#607e65',saved:'#ba7f27',active:'#245e52'};
 function initialize(){
  if(map)return true;if(!window.L){$('map-status').textContent='地図を読み込めませんでした。行き方とナビのリンクは利用できます。';return false}
  map=L.map('discover-map',{scrollWheelZoom:false}).setView([36.074,138.087],14);
  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
- pointLayer=L.layerGroup().addTo(map);busLayer=L.layerGroup().addTo(map);routeLayer=L.layerGroup().addTo(map);return true;
+ pointLayer=L.layerGroup().addTo(map);busLayer=L.layerGroup().addTo(map);routeLayer=L.layerGroup().addTo(map);toiletLayer=L.layerGroup().addTo(map);tripLayer=L.layerGroup().addTo(map);return true;
 }
 function point(p){return {name:p['名称'],lat:PlaceData.lat(p),lng:PlaceData.lng(p)}}
 function busPoint(s){return {lat:+(s.latitude||s.stop_lat),lng:+(s.longitude||s.stop_lon)}}
-function drawBus(){
- if(!map)return;busLayer.clearLayers();if(!$('show-bus-stops').checked)return;
- for(const s of busStops){L.circleMarker([+s.latitude,+s.longitude],{radius:5,color:'#2e6a9d',fillColor:'#e8f2ff',fillOpacity:1,weight:2}).bindPopup('<b>🚌 '+esc(s.stop_name)+'</b><br>'+esc(s.bus_system||'バス停')).addTo(busLayer)}
+function showTrip(details,date){
+ if(!details)return;
+ $('bus-trip-content').innerHTML='<p class="eyebrow">BUS / STOP TIMES</p><h2>'+esc(details.route)+'</h2><p>'+esc(details.headsign)+(/便$/.test(details.headsign)?'':'方面')+' · '+esc(date)+'</p><p class="small-note">選んだ便の全停車順です。「ここで乗車」より後が、乗車後の停留所です。</p><ol class="trip-stop-list">'+details.stops.map(row=>'<li class="'+(row.boarding?'boarding-stop':'')+'"><div class="trip-stop-time">'+(row.arrival===null?'未登録':DiscoverTravel.time(row.arrival))+'</div><div><b>'+esc(row.name)+'</b>'+(row.boarding?'<span class="boarding-label">ここで乗車</span>':'')+(row.departure!==null&&row.arrival!==row.departure?'<small> '+DiscoverTravel.time(row.departure)+'発</small>':'')+'</div></li>').join('')+'</ol><p class="small-note">登録時刻表です。遅延・臨時運休は反映されません。</p>';
+ const points=details.stops.filter(row=>row.lat&&row.lng);
+ if(map&&points.length){tripLayer.clearLayers();routeLayer.clearLayers();const line=L.polyline(points.map(row=>[row.lat,row.lng]),{color:'#79519b',weight:4,dashArray:'6 5'}).addTo(tripLayer);for(const row of points)L.circleMarker([row.lat,row.lng],{radius:row.boarding?8:5,color:'#79519b',fillColor:row.boarding?'#edd38c':'#fff',fillOpacity:1,weight:2}).bindPopup('<b>'+esc(row.name)+'</b><br>'+(row.arrival===null?'時刻未登録':DiscoverTravel.time(row.arrival)+'着')).addTo(tripLayer);map.fitBounds(line.getBounds(),{padding:[25,25],maxZoom:16});}
+ $('bus-route-label').textContent=details.route+' · '+date+'（点線は停留所間の目安）';$('bus-route-banner').hidden=false;
+ map?.closePopup();if(!$('bus-trip-dialog').open)$('bus-trip-dialog').showModal();
 }
+async function stopPopup(stop,element,wholeDay=false,popupObject=null){
+ const version=++popupVersion;openStop={stop,element,wholeDay,popupObject};const date=$('departure-date').value,time=$('departure-time').value;
+ element.innerHTML='<b>🚌 '+esc(stop.stop_name)+'</b><br>'+esc(stop.bus_system||'バス停')+'<p class="small-note">'+esc(date)+'の出発時刻を調べています…</p>';
+ popupObject?.update();
+ try{
+  const data=await getTimetable();if(version!==popupVersion)return;
+  const from=wholeDay?0:DiscoverTravel.minutes(time);if(from===null)throw Error('出発時刻を選んでください');
+  const rows=DiscoverTravel.departures(data,date,stop.stop_id||stop.uid,from);
+  element.innerHTML='<b>🚌 '+esc(stop.stop_name)+'</b><br>'+esc(stop.bus_system||'バス停')+'<p class="small-note">'+esc(date)+(wholeDay?'の全出発時刻':' '+esc(time)+'以降')+'<br>時刻を押すと、この便の停車順と到着時刻を表示します。</p>';
+  if(!rows.length){const note=document.createElement('p');note.textContent=wholeDay?'この日の登録便はありません。':'この時刻以降の登録便はありません。';element.appendChild(note)}
+  const list=document.createElement('div');list.className='bus-departure-list';
+  for(const row of rows.slice(0,wholeDay?rows.length:6)){
+   const button=document.createElement('button');button.type='button';button.className='bus-departure';button.innerHTML='<b>'+DiscoverTravel.time(row.time)+'</b><span>'+esc(row.route)+'<small>'+esc(row.headsign)+(/便$/.test(row.headsign)?'':'方面')+'</small></span>';button.onclick=()=>showTrip(DiscoverTravel.tripDetails(data,date,row.tripId,row.sequence),date);list.appendChild(button);
+  }
+  element.appendChild(list);
+  if(!wholeDay){const button=document.createElement('button');button.type='button';button.className='map-popup-button';button.textContent='この日の全時刻を見る';button.onclick=()=>stopPopup(stop,element,true,popupObject);element.appendChild(button)}
+  const note=document.createElement('p');note.className='small-note';note.textContent='登録時刻表です。遅延・臨時運休は反映されません。';element.appendChild(note);
+ }catch(e){if(version===popupVersion)element.innerHTML='<b>'+esc(stop.stop_name)+'</b><p>'+esc(e.message)+'</p><p class="small-note">出発日・時刻を確認してください。</p>'}finally{if(version===popupVersion)popupObject?.update()}
+}
+function drawBus(){
+ if(!map)return;busLayer.clearLayers();openStop=null;popupVersion++;if(!$('show-bus-stops').checked)return;
+ for(const s of busStops){const popup=document.createElement('div');const marker=L.circleMarker([+s.latitude,+s.longitude],{radius:5,color:'#2e6a9d',fillColor:'#e8f2ff',fillOpacity:1,weight:2}).bindPopup(popup,{maxWidth:300,maxHeight:310}).addTo(busLayer);marker.on('popupopen',()=>stopPopup(s,popup,false,marker.getPopup()));marker.on('popupclose',()=>{if(openStop?.element===popup){openStop=null;popupVersion++}});marker.bindTooltip(s.stop_name);const element=marker.getElement();if(element){element.setAttribute('role','button');element.setAttribute('aria-label','バス停：'+s.stop_name+'（'+(s.bus_system||'バス')+'）');element.setAttribute('tabindex','0');element.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();marker.openPopup()}})}}
+}
+function toiletPlaces(){return (snapshot?.allPlaces||[]).filter(p=>DiscoverModel.toilet(p));}
+function drawToilets(){
+ if(!map)return;toiletLayer.clearLayers();if(!$('show-toilets').checked)return;
+ for(const p of toiletPlaces()){const dedicated=p['種別']==='トイレ';const popup=document.createElement('div');popup.innerHTML='<b>🚻 '+esc(p['名称'])+'</b><p>'+esc(p['住所']||'')+'</p><p class="small-note">'+(dedicated?'トイレ地点':'施設内のトイレ。利用条件は施設で確認してください。')+'</p>'+(PlaceData.truthy(PlaceData.effective(p,'多目的トイレ'))?'<p>多目的トイレ：登録あり</p>':'');const button=document.createElement('button');button.type='button';button.className='map-popup-button';button.textContent='ここへの行き方';button.onclick=()=>window.DiscoverUI.focus(PlaceData.keyOf(p),false);popup.appendChild(button);L.marker([PlaceData.lat(p),PlaceData.lng(p)],{icon:L.divIcon({className:'toilet-pin',html:'<span>WC</span>',iconSize:[28,24],iconAnchor:[14,12]}),title:'トイレ：'+p['名称']}).bindPopup(popup).addTo(toiletLayer);}
+}
+
 function draw(snapshotData){
  snapshot=snapshotData;const {places,saved,origin,active}=snapshot;
  if(initialize()){
@@ -27,7 +60,7 @@ function draw(snapshotData){
   L.circleMarker([PlaceData.lat(p),PlaceData.lng(p)],{radius:isActive?10:isSaved?8:6,color,fillColor:color,fillOpacity:.9,weight:isActive?3:1}).bindPopup(popup).addTo(pointLayer);
  }
  if(origin){if(originMarker)map.removeLayer(originMarker);originMarker=L.circleMarker([origin.lat,origin.lng],{radius:7,color:'#fff',fillColor:'#2e6a9d',fillOpacity:1,weight:3}).bindPopup('出発地点').addTo(map)}
- drawBus();const key=[...combined.keys()].sort().join(',')+'|'+(active?PlaceData.keyOf(active):'')+'|'+JSON.stringify(origin);
+ drawBus();drawToilets();const key=[...combined.keys()].sort().join(',')+'|'+(active?PlaceData.keyOf(active):'')+'|'+JSON.stringify(origin);
  if(active&&PlaceData.hasCoord(active)){bounds.length=0;bounds.push([PlaceData.lat(active),PlaceData.lng(active)])}
  if(key!==fitKey&&bounds.length){const nearOrigin=bounds.some(b=>DiscoverModel.distance({latitude:b[0],longitude:b[1]},origin)<10);if(origin&&nearOrigin)bounds.push([origin.lat,origin.lng]);map.fitBounds(bounds,{padding:[28,28],maxZoom:16});fitKey=key}
  map.invalidateSize();$('map-status').textContent='候補 '+[...combined.values()].filter(PlaceData.hasCoord).length+'地点・バス停 '+busStops.length+'か所';
@@ -75,6 +108,10 @@ async function updateAccess(){
 async function loadStops(){try{const response=await fetch('data/bus_stops_corrected.json',{cache:'force-cache'});if(!response.ok)throw Error('stops');const data=await response.json();busStops=Array.isArray(data)?data:(data.items||data.stops||[]);if(snapshot)draw(snapshot)}catch(_){$('map-status').textContent='バス停データを読み込めませんでした。バス検索は時刻表から確認できます。'}}
 const japan=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const part=type=>japan.find(p=>p.type===type).value;$('departure-date').value=part('year')+'-'+part('month')+'-'+part('day');$('departure-time').value=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date());
 $('show-bus-stops').onchange=drawBus;$('destination-select').onchange=e=>window.DiscoverUI.focus(e.target.value,false);
-for(const id of ['travel-mode','departure-date','departure-time'])$(id).onchange=updateAccess;
+for(const id of ['travel-mode','departure-date','departure-time'])$(id).onchange=()=>{updateAccess();if(id!=='travel-mode'){tripLayer?.clearLayers();$('bus-route-banner').hidden=true;if(openStop)stopPopup(openStop.stop,openStop.element,openStop.wholeDay,openStop.popupObject)}};
+$('show-toilets').onchange=drawToilets;
+$('close-bus-trip').onclick=()=>$('bus-trip-dialog').close();
+$('trip-map-button').onclick=()=>{$('bus-trip-dialog').close();$('discover-map').scrollIntoView({behavior:'smooth',block:'center'});map?.invalidateSize()};
+$('clear-bus-route').onclick=()=>{tripLayer?.clearLayers();$('bus-route-banner').hidden=true;fitKey='';if(snapshot)draw(snapshot)};
 window.DiscoverMap={draw,updateAccess,reveal(){initialize();map?.invalidateSize();},loadStops};loadStops();
 })();

@@ -13,5 +13,9 @@ for(const file of ['place-data.js','planner-core.js','discover-travel.js'])vm.ru
  assert(new URL(T.directions(a,b,'car')).searchParams.get('travelmode')==='driving');assert(new URL(T.directions(a,b,'bus')).searchParams.get('travelmode')==='transit');
  assert.equal(T.minutes('25:00'),null);assert.equal(T.minutes('09:00'),540);
  const stops=[{stop_name:'遠い',latitude:36.05,longitude:138},{stop_name:'近い',latitude:36.001,longitude:138}];assert.equal(T.nearest(stops,a)[0].stop_name,'近い');
- console.log('PASS: shared GTFS; direct bus; weekday, holiday and service-date exclusions; no bus after last departure; travel modes; nearest stops; navigation URLs');
+ const departures=T.departures(base,'2026-10-13','a',540);assert.equal(departures.length,1);assert.equal(departures[0].time,550);assert.equal(T.departures(base,'2026-10-12','a',0).length,0);assert.equal(T.departures(base,'2026-10-13','b',0).length,0);
+ const trip=T.tripDetails(base,'2026-10-13','t',1);assert.equal(trip.stops.length,2);assert.equal(trip.stops[0].boarding,true);assert.equal(trip.stops[1].arrival,570);assert.equal(T.tripDetails(base,'2026-10-12','t',1),null);
+ const loop={...base,stops:base.stops.concat({stop_id:'c',stop_name:'終点C',stop_lat:36.06,stop_lon:138}),stopTimes:base.stopTimes.concat({trip_id:'t',stop_id:'a',stop_sequence:'3',departure_time:'09:40:00',arrival_time:'09:39:00'},{trip_id:'t',stop_id:'c',stop_sequence:'4',arrival_time:'10:00:00',departure_time:'10:00:00'})};
+ assert.equal(T.departures(loop,'2026-10-13','a',0).length,2);const loopTrip=T.tripDetails(loop,'2026-10-13','t',3);assert.equal(loopTrip.stops.filter(s=>s.boarding).length,1);assert.equal(loopTrip.stops[2].boarding,true);assert.equal(loopTrip.stops[3].arrival,600);
+ console.log('PASS: shared GTFS; direct bus; weekday, holiday and service-date exclusions; no bus after last departure; travel modes; nearest stops; navigation URLs; stop departures; full trip timeline and repeated-stop boarding');
 })().catch(e=>{console.error(e);process.exitCode=1});

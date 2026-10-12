@@ -17,5 +17,6 @@ vm.createContext(context);vm.runInContext(fs.readFileSync('place-data.js','utf8'
  const hidden={'place_id':'test','名称':'test','自動提案':'hidden'};assert(!M.visible(hidden,PD));assert(!M.visible({...hidden,'自動提案':'normal','削除予定':'yes'},PD));
  assert.equal(M.safeURL('javascript:alert(1)'),'');assert.equal(M.safeURL('data:text/html,test'),'');assert(M.safeURL('https://example.com'));
  const source=fs.readFileSync('discover-app.js','utf8');assert(!source.includes("p['運営メモ']"));assert(!source.includes("p['オーナー評価メモ']"));
+ const wc={'名称':'トイレ','種別':'トイレ',latitude:36,longitude:138};assert(M.toilet(wc,PD));assert(M.toilet({...wc,'種別':'公園','トイレ':'yes'},PD));assert(!M.toilet({...wc,'種別':'飲食店','トイレ':'yes','トイレ一般利用':'no'},PD));assert(!M.toilet({...wc,'削除予定':'yes'},PD));assert(!M.toilet({...wc,latitude:''},PD));assert(places.some(p=>M.toilet(p,PD)));
  console.log(`PASS: shared ${places.length} places; soba/craft beer/onsen, keyword union, distance sorting, duration units, no results, hidden/deleted places, safe links`);
 })().catch(e=>{console.error(e);process.exitCode=1});

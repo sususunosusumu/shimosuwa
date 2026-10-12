@@ -43,7 +43,7 @@ function renderSelection(){
  const chosen=[...saved].map(id=>byId.get(id)).filter(Boolean);
  $('selection-bar').hidden=chosen.length===0;$('selection-label').textContent='行きたい '+chosen.length+'件';
  $('selected-places').innerHTML=chosen.length?'<p class="small-note">行きたい場所を選んで、移動手段を確認してください。</p><div class="chips">'+chosen.map(p=>'<button type="button" class="chip" data-focus="'+esc(PD.keyOf(p))+'" aria-pressed="'+(state.active===PD.keyOf(p))+'">'+esc(p['名称'])+'</button>').join('')+'</div>':'<p class="small-note">「行きたい」に追加した場所はここに集まります。候補の「地図・行き方」からも確認できます。</p>';
- window.DiscoverMap?.draw({places:results(),saved:chosen,origin:state.origin,originLabel:state.gps?'現在地':'下諏訪駅',station:places.find(p=>p['名称']==='下諏訪駅'),active:byId.get(state.active)||null});
+ window.DiscoverMap?.draw({places:results(),allPlaces:places,saved:chosen,origin:state.origin,originLabel:state.gps?'現在地':'下諏訪駅',station:places.find(p=>p['名称']==='下諏訪駅'),active:byId.get(state.active)||null});
 }
 function revealMap(){if($('saved-dialog').open)$('saved-dialog').close();if($('place-dialog').open)$('place-dialog').close();$('map-section').scrollIntoView?.({behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});window.DiscoverMap?.reveal();}
 function focus(id,scroll=true){state.active=byId.has(id)?id:'';renderSelection();if(scroll)revealMap()}

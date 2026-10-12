@@ -1,0 +1,20 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const M=require('../discover-model.js');
+const context={window:{},localStorage:{getItem:()=>null},document:{querySelector:()=>true},fetch:async path=>{try{return {ok:true,text:async()=>fs.readFileSync(path.split('?')[0],'utf8')}}catch(_){return {ok:false}}}};
+vm.createContext(context);vm.runInContext(fs.readFileSync('place-data.js','utf8'),context);
+(async()=>{
+ const PD=context.window.PlaceData,{places}=await PD.loadAll();assert(places.length>=149);
+ const origin={lat:36.0720136,lng:138.0849189},state={mood:'eat',keywords:['soba'],query:'',origin,sort:'near'};
+ const soba=M.search(places,state,PD);assert(soba.some(p=>p['名称']==='とんねるや'));assert(!soba.some(p=>p['名称'].includes('温泉')));
+ const craft=M.search(places,{...state,mood:'drink',keywords:['craft']},PD);assert(craft.some(p=>p['名称']==='ちいとこ商店'));
+ const onsen=M.search(places,{...state,mood:'relax',keywords:['onsen']},PD);assert(onsen.some(p=>p['名称']==='菅野温泉'));assert(!onsen.some(p=>p['名称'].includes('足湯')));
+ const union=M.search(places,{...state,keywords:['soba','unagi']},PD);assert(union.length>=soba.length);assert(union.some(p=>p['名称']==='うなぎ林屋'));
+ assert.equal(M.search(places,{...state,query:'存在しない店舗1234'},PD).length,0);
+ const distance=soba.map(p=>M.distance(p,origin,PD)??Infinity);assert(distance.every((d,i)=>i===0||d>=distance[i-1]));
+ assert.equal(M.duration({'推奨滞在時間_分':'1〜2時間'},PD),120);assert.equal(M.duration({'推奨滞在時間_分':'15-30'},PD),30);assert.equal(M.duration({},PD),null);
+ const short=M.search(places,{...state,mood:'',keywords:[],short:true},PD);assert(short.every(p=>M.duration(p,PD)<=30));
+ const hidden={'place_id':'test','名称':'test','自動提案':'hidden'};assert(!M.visible(hidden,PD));assert(!M.visible({...hidden,'自動提案':'normal','削除予定':'yes'},PD));
+ assert.equal(M.safeURL('javascript:alert(1)'),'');assert.equal(M.safeURL('data:text/html,test'),'');assert(M.safeURL('https://example.com'));
+ const source=fs.readFileSync('discover-app.js','utf8');assert(!source.includes("p['運営メモ']"));assert(!source.includes("p['オーナー評価メモ']"));
+ console.log(`PASS: shared ${places.length} places; soba/craft beer/onsen, keyword union, distance sorting, duration units, no results, hidden/deleted places, safe links`);
+})().catch(e=>{console.error(e);process.exitCode=1});

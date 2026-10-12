@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f7f5ef"><meta name="description" content="下諏訪で、次にしたいことを見つけよう。気になるキーワードから、お店や温泉、まち歩きの行き先を探せます。">
+<title>下諏訪、なにしよう？</title><link rel="stylesheet" href="discover.css?v=20261012-2">
+</head>
+<body>
+<header class="site-header"><a class="brand" href="discover.html"><span class="brand-symbol" aria-hidden="true">下</span><span>下諏訪、なにしよう？</span></a><nav aria-label="ページ"><a href="index.html">時間プランナー <span aria-hidden="true">↗</span></a><button class="saved-toggle" id="saved-toggle" type="button">行きたい <span id="saved-count">0</span></button></nav></header>
+<main>
+<section class="hero" aria-labelledby="hero-title"><div class="hero-copy"><p class="eyebrow">SHIMOSUWA · FIND YOUR NEXT STOP</p><h1 id="hero-title">さて、<br>なにしよう<span class="question-mark">？</span></h1><p class="hero-description">気になる言葉を、ひとつ選んで。<br>下諏訪での次のひとときを見つけよう。</p><div class="location-bar"><span class="location-dot" aria-hidden="true"></span><span id="origin-label">下諏訪駅を基準に探す</span><button id="location-button" type="button">現在地から探す <span aria-hidden="true">⌖</span></button><button id="station-button" type="button" hidden>駅に戻す</button></div><p id="location-status" class="small-note" role="status"></p></div><div class="hero-art" aria-hidden="true"><div class="art-sun"></div><div class="art-mountain mountain-back"></div><div class="art-mountain mountain-front"></div><div class="art-town"><i></i><i></i><i></i><i></i></div><div class="art-lake"></div><div class="art-caption">湖と山のあいだで、<br>自分のペースを見つける。</div><span class="art-mark">36° N / 138° E</span></div></section>
+<section class="explore" aria-labelledby="mood-title"><div class="section-heading"><div><p class="eyebrow">01 / YOUR MOOD</p><h2 id="mood-title">いま、こんな気分。</h2></div><button id="reset-button" class="text-button" type="button">選び直す ↺</button></div><div class="moods" id="moods"></div>
+<div class="deepening" id="deepening" hidden><div class="deepening-heading"><span id="selected-mood"></span><h3>もう少し、どんな感じ？</h3><p>気になるものを複数選べます。</p></div><div id="keywords" class="chips"></div></div>
+</section>
+<section class="results-section" aria-labelledby="results-title"><div class="section-heading results-heading"><div><p class="eyebrow">02 / YOUR NEXT STOP</p><h2 id="results-title">こんな場所、どう？</h2><p id="results-count" role="status" aria-live="polite">地点を読み込んでいます…</p></div><div class="result-tools"><label class="search-box"><span aria-hidden="true">⌕</span><input id="search-input" type="search" placeholder="名前やキーワードでも探せます" aria-label="名前やキーワードで検索"></label><label class="sort-label">並び順<select id="sort-select"><option value="recommended">おすすめ順</option><option value="near">近い順</option></select></label></div></div>
+<div class="filters"><label><input id="rain-filter" type="checkbox">雨の日でも</label><label><input id="short-filter" type="checkbox">30分以内で</label><p>距離は直線距離の目安です。</p></div>
+<div id="load-error" class="empty-state" hidden><h3>地点を読み込めませんでした</h3><p>通信状況を確認して、もう一度お試しください。</p><button id="retry-button" class="primary-button" type="button">再読み込み</button></div>
+<div id="empty-state" class="empty-state" hidden><span aria-hidden="true">↺</span><h3>ぴったりの場所が見つかりませんでした。</h3><p>言葉をひとつ減らすか、条件をゆるめてみてください。</p><button id="clear-filters" class="primary-button" type="button">絞り込みを外す</button></div>
+<div id="results" class="place-grid"></div><button id="more-button" class="more-button" type="button" hidden>もう少し見る ↓</button>
+</section>
+<footer class="site-footer"><p>気になる場所から、下諏訪を楽しもう。</p><a href="maintenance.html">地点データ管理 ↗</a><p class="small-note">営業時間などは登録情報です。最新情報は店舗・施設のページをご確認ください。</p></footer>
+</main>
+<dialog id="place-dialog" class="place-dialog"><button id="close-dialog" class="close-button" type="button" aria-label="詳細を閉じる">×</button><div id="place-detail"></div></dialog>
+<dialog id="saved-dialog" class="saved-dialog"><div class="dialog-heading"><div><p class="eyebrow">YOUR LITTLE LIST</p><h2>行きたい場所</h2></div><button id="close-saved" class="close-button" type="button" aria-label="行きたい場所を閉じる">×</button></div><p class="small-note">このブラウザに保存されます。</p><div id="saved-list"></div><div class="saved-actions"><button id="copy-list" type="button" class="primary-button">候補をコピー</button><a class="secondary-link" href="index.html">時間プランナーを開く ↗</a></div></dialog>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="place-data.js?v=20261012-discover"></script><script src="discover-model.js?v=20261012-2"></script><script src="discover-app.js?v=20261012-2"></script>
+</body>
+</html>
